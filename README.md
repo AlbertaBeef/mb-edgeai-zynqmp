@@ -23,16 +23,16 @@ Important links:
 
 ## Requirements
 
-This project is designed for version 2024.1 of the Xilinx tools (Vivado/Vitis/PetaLinux). 
+This project is designed for version 2025.2 of the Xilinx tools (Vivado/Vitis/PetaLinux). 
 If you are using an older version of the Xilinx tools, then refer to the 
 [release tags](https://github.com/fpgadeveloper/zynqmp-hailo-ai/tags "releases")
 to find the version of this repository that matches your version of the tools.
 
 In order to test this design on hardware, you will need the following:
 
-* Vivado 2024.1
-* Vitis 2024.1
-* PetaLinux Tools 2024.1
+* Vivado 2025.2
+* Vitis 2025.2
+* PetaLinux Tools 2025.2
 * 1x [Hailo-8 M.2 AI Acceleration Module]
 * 4x [Raspberry Pi Camera Module 2](https://www.raspberrypi.com/products/camera-module-v2/)
 * 1x [RPi Camera FMC]
@@ -108,8 +108,8 @@ git clone --recursive https://github.com/fpgadeveloper/zynqmp-hailo-ai.git
 Source Vivado and PetaLinux tools:
 
 ```
-source <path-to-petalinux>/2024.1/settings.sh
-source <path-to-vivado>/2024.1/settings64.sh
+source <path-to-petalinux>/2025.2/settings.sh
+source <path-to-vivado>/2025.2/settings64.sh
 ```
 
 Build all (Vivado project, accelerator kernel and PetaLinux):
@@ -143,7 +143,7 @@ fatal: unable to access 'https://github.com/protocolbuffers/protobuf.git/': erro
 
 In order to build the meta-hailo recipes, PetaLinux needs to clone some repositories. To do this, it requires 
 a digital certificate that is expecting to find in path `/usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/`.
-The correct location of the certificate is `/<petalinux-install-path>/2024.1/sysroots/x86_64-petalinux-linux/etc/ssl/certs/`.
+The correct location of the certificate is `/<petalinux-install-path>/2025.2/sysroots/x86_64-petalinux-linux/etc/ssl/certs/`.
 
 #### Work-around:
 
@@ -152,7 +152,7 @@ where it is expecting to find it.
 
 ```
 sudo mkdir -p /usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/
-sudo ln -s /<petalinux-install-path>/2024.1/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt /usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt
+sudo ln -s /<petalinux-install-path>/2025.2/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt /usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt
 ```
 
 Note that before running the commands, you must replace `<petalinux-install-path>` with the correct path to your PetaLinux

@@ -158,7 +158,7 @@ create_clock -period 10.000 -name ref_clk_0_clk_p -waveform {0.000 5.000} [get_p
 
 # MGT locations
 # M2 slot 1 HPC1_DP0 (PCIe lane 0) is connected to MGT bank 223 (X0Y0-X0Y3), specifically X0Y3
-set_property LOC GTHE4_CHANNEL_X0Y3 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_0*channel_inst[0]*" }]
+set_property LOC GTHE4_CHANNEL_X0Y3 [get_cells -hierarchical -regexp -filter { PRIMITIVE_TYPE == ADVANCED.GT.GTHE4_CHANNEL && PARENT =~  ".*xdma_0.*" && NAME =~  ".*channel_inst\[0\].*" } ]
 
 # ZCU106 HPC1 transceivers for M2 slot 1 are best aligned with PCIE_X0Y0
 set_property LOC PCIE40E4_X0Y0 [get_cells *_i/xdma_0/inst/pcie4_ip_i/inst/*_pcie_4_0_pipe_inst/pcie_4_0_e4_inst]

@@ -155,16 +155,16 @@ create_clock -period 10.000 -name ref_clk_1_clk_p -waveform {0.000 5.000} [get_p
 # MGT locations
 # The GT LOCs are specified in a post hook Tcl file for this design
 # M2 slot 1 HPC0_DP0-3 (PCIe lanes 0-3) are connected to MGT bank 225 (X0Y8-X0Y11) in this order: 0->0, 1->1, 2->2, 3->3
-#set_property LOC GTHE4_CHANNEL_X0Y8  [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_0*channel_inst[3]*" }]
-#set_property LOC GTHE4_CHANNEL_X0Y9  [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_0*channel_inst[2]*" }]
-#set_property LOC GTHE4_CHANNEL_X0Y10 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_0*channel_inst[1]*" }]
-#set_property LOC GTHE4_CHANNEL_X0Y11 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_0*channel_inst[0]*" }]
+#set_property LOC GTHE4_CHANNEL_X0Y8  [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_0*channel_inst\[3\]*" }]
+#set_property LOC GTHE4_CHANNEL_X0Y9  [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_0*channel_inst\[2\]*" }]
+#set_property LOC GTHE4_CHANNEL_X0Y10 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_0*channel_inst\[1\]*" }]
+#set_property LOC GTHE4_CHANNEL_X0Y11 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_0*channel_inst\[0\]*" }]
 
 # M2 slot 2 HPC0_DP4-7 (PCIe lanes 0-3) are connected to MGT bank 224 (X0Y4-X0Y7) in this order: 0->0, 1->1, 2->2, 3->3
-#set_property LOC GTHE4_CHANNEL_X0Y4 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_1*channel_inst[3]*" }]
-#set_property LOC GTHE4_CHANNEL_X0Y5 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_1*channel_inst[2]*" }]
-#set_property LOC GTHE4_CHANNEL_X0Y6 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_1*channel_inst[1]*" }]
-#set_property LOC GTHE4_CHANNEL_X0Y7 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_1*channel_inst[0]*" }]
+#set_property LOC GTHE4_CHANNEL_X0Y4 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_1*channel_inst\[3\]*" }]
+#set_property LOC GTHE4_CHANNEL_X0Y5 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_1*channel_inst\[2\]*" }]
+#set_property LOC GTHE4_CHANNEL_X0Y6 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_1*channel_inst\[1\]*" }]
+#set_property LOC GTHE4_CHANNEL_X0Y7 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ ADVANCED.GT.GTHE4_CHANNEL && NAME =~ "*xdma_1*channel_inst\[0\]*" }]
 
 # UltraZed-EV FMC transceivers for M2 slot 1 are best aligned with PCIE_X0Y1
 set_property LOC PCIE40E4_X0Y1 [get_cells *_i/xdma_0/inst/pcie4_ip_i/inst/*_pcie_4_0_pipe_inst/pcie_4_0_e4_inst]
