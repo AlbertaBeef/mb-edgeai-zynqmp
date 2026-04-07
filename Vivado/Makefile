@@ -7,7 +7,6 @@ MKDIR = mkdir -p
 RM = rm -rf
 ROOT_DIR = $(shell pwd)
 VIVADO = $(XILINX_VIVADO)/bin/vivado
-BD_NAME = rpi
 
 # defaults
 .DEFAULT_GOAL := xsa
@@ -16,6 +15,7 @@ JOBS ?= 8
 
 # valid targets
 # UPDATER START
+BD_NAME = rpi
 zcu104_target := xilinx.com zcu104 no_accel
 zcu106_target := xilinx.com zcu106 no_accel
 zcu106_hpc0_target := xilinx.com zcu106 no_accel

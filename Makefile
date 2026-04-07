@@ -4,7 +4,6 @@
 
 RM = rm -rf
 ROOT_DIR = $(shell pwd)
-BD_NAME = rpi
 PRJ_NAME = zynqmp-hailo-ai
 
 # defaults
@@ -14,6 +13,7 @@ JOBS ?= 8
 
 # valid targets (template name)
 # UPDATER START
+BD_NAME = rpi
 zcu104_target := zynqMP
 zcu106_target := zynqMP
 zcu106_hpc0_target := zynqMP

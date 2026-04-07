@@ -2,9 +2,9 @@
 
 In order to test this design on hardware, you will need the following:
 
-* Vivado 2024.1
-* Vitis 2024.1
-* PetaLinux Tools 2024.1
+* Vivado 2025.2
+* Vitis 2025.2
+* PetaLinux Tools 2025.2
 * Linux PC or Virtual machine (for build)
 * 1x [Hailo-8 M.2 AI Acceleration Module](https://hailo.ai/products/ai-accelerators/hailo-8-m2-ai-acceleration-module/)
 * One or more [Raspberry Pi Camera Module 2]

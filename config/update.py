@@ -15,8 +15,8 @@ import os
 import json
 
 # Load the JSON data
-def load_json():
-    with open('data.json') as f:
+def load_json(filename):
+    with open(filename) as f:
         return json.load(f)
 
 # Create design tables for the README.md file
@@ -95,6 +95,7 @@ def update_readme(file_path,data):
 def get_root_targets(data):
     templates = {'fpga': 'microblaze', 'z7': 'zynq', 'zu': 'zynqMP', 'versal': 'versal'}
     targets = []
+    targets.append('BD_NAME = {}'.format(data['bd_name']))
     for design in data['designs']:
         template = templates[design['group']]
         target = '{}_target := {}'.format(design['label'],template)
@@ -103,7 +104,9 @@ def get_root_targets(data):
 
 def get_vivado_targets(data):
     to_accel = {True: 'accel', False: 'no_accel'}
-    targets = ['{}_target := {} {} {}'.format(design['label'],design['url'],design['boardname'],
+    targets = []
+    targets.append('BD_NAME = {}'.format(data.get('vivado_bd_name', data['bd_name'])))
+    targets += ['{}_target := {} {} {}'.format(design['label'],design['url'],design['boardname'],
         to_accel[design['accel']]) for design in data['designs']]
     return(targets)
 
@@ -207,54 +210,54 @@ def update_file(file_path,targets):
 # Make sure that there is a constraints file for all target designs
 def check_constraints(data):
     for design in data['designs']:
-        filename = '../../Vivado/src/constraints/{}.xdc'.format(design['label'])
+        filename = '../Vivado/src/constraints/{}.xdc'.format(design['label'])
         if not os.path.isfile(filename):
             print('WARNING: No constraints file found for target',design['label'])
 
 # Read the JSON data
-data = load_json()
-file_path = '../../README.md'
+data = load_json('data.json')
+file_path = '../README.md'
 
 # Update the main README.md file
 update_readme(file_path,data)
 
 # Update the root makefile
-root_makefile = '../../Makefile'
+root_makefile = '../Makefile'
 root_targets = get_root_targets(data)
 update_file(root_makefile,root_targets)
 
 # Update the Vivado makefile
-vivado_makefile = '../../Vivado/Makefile'
+vivado_makefile = '../Vivado/Makefile'
 vivado_targets = get_vivado_targets(data)
 update_file(vivado_makefile,vivado_targets)
 
 # Update the Vivado build.tcl
-vivado_build_tcl = '../../Vivado/scripts/build.tcl'
+vivado_build_tcl = '../Vivado/scripts/build.tcl'
 vivado_build_targets = get_vivado_build_targets(data)
 update_file(vivado_build_tcl,vivado_build_targets)
 
 # Update the Vivado IP makefile
-vivado_ip_makefile = '../../Vivado/ip/Makefile'
+vivado_ip_makefile = '../Vivado/ip/Makefile'
 vivado_ip_targets = get_vivado_ip_targets(data)
 update_file(vivado_ip_makefile,vivado_ip_targets)
 
 ## Update the Vitis Accel makefile
-#vitis_accel_makefile = '../../VitisAccel/Makefile'
+#vitis_accel_makefile = '../VitisAccel/Makefile'
 #vitis_accel_targets = get_vitis_accel_targets(data)
 #update_file(vitis_accel_makefile,vitis_accel_targets)
 
 ## Update the Vitis makefile
-#vitis_makefile = '../../Vitis/Makefile'
+#vitis_makefile = '../Vitis/Makefile'
 #vitis_targets = get_vitis_targets(data)
 #update_file(vitis_makefile,vitis_targets)
 #
 # Update the PetaLinux makefile
-petalinux_makefile = '../../PetaLinux/Makefile'
+petalinux_makefile = '../PetaLinux/Makefile'
 petalinux_targets = get_petalinux_targets(data)
 update_file(petalinux_makefile,petalinux_targets)
 
 # Update the gitignore
-gitignore = '../../.gitignore'
+gitignore = '../.gitignore'
 gitignore_paths = get_ignore_paths(data)
 update_file(gitignore,gitignore_paths)
 
