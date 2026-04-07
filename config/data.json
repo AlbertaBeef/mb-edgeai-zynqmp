@@ -1,5 +1,6 @@
 {
   "bd_name": "rpi",
+  "prj_name": "zynqmp-hailo-ai",
   "groups": [
     {
       "label": "fpga",
