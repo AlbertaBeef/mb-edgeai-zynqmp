@@ -59,9 +59,9 @@ however these example designs currently only have the software support for the [
 this effort, your pull requests are more than welcome.
 ```
 
-[RPi Camera FMC]: https://camerafmc.com/docs/rpi-camera-fmc/overview/
+[RPi Camera FMC]: https://docs.opsero.com/op068/datasheet/overview/
 [Digilent Pcam 5C]: https://digilent.com/shop/pcam-5c-5-mp-fixed-focus-color-camera-module/
 [Raspberry Pi Camera Module 2]: https://www.raspberrypi.com/products/camera-module-v2/
-[FPGA Drive FMC Gen4]: https://www.fpgadrive.com/docs/fpga-drive-fmc-gen4/overview/
-[M.2 M-key Stack FMC]: https://www.fpgadrive.com/docs/m2-mkey-stack-fmc/overview/
+[FPGA Drive FMC Gen4]: https://docs.opsero.com/op063/datasheet/overview/
+[M.2 M-key Stack FMC]: https://docs.opsero.com/op073/datasheet/overview/
 

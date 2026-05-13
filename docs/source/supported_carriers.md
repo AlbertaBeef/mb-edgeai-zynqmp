@@ -66,7 +66,7 @@ toggling the pl_resetn0 pin (Bank 5, bit 31, EMIO 95). This script can be found 
 `PetaLinux/bsp/pynqzu/project-spec/meta-user/recipes-bsp/u-boot/files/platform-top.h`.
 
 [contact Opsero]: https://opsero.com/contact-us
-[RPi Camera FMC]: https://camerafmc.com/docs/rpi-camera-fmc/overview/
+[RPi Camera FMC]: https://docs.opsero.com/op068/datasheet/overview/
 [compatibility list]: https://camerafmc.com/docs/rpi-camera-fmc/compatibility/
 [AMD Xilinx MIPI CSI Controller Subsystem IP]: https://docs.xilinx.com/r/en-US/pg202-mipi-dphy
 [Si5324]: https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/data-sheets/Si5324.pdf

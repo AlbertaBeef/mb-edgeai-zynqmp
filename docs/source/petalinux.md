@@ -158,8 +158,8 @@ For this reason, in our Vivado design for this board we have included the video 
 CAM1 and CAM2.
 
 
-[RPi Camera FMC]: https://camerafmc.com/docs/rpi-camera-fmc/overview/
-[M.2 M-key Stack FMC]: https://www.fpgadrive.com/docs/m2-mkey-stack-fmc/overview/
+[RPi Camera FMC]: https://docs.opsero.com/op068/datasheet/overview/
+[M.2 M-key Stack FMC]: https://docs.opsero.com/op073/datasheet/overview/
 [Raspberry Pi camera module v2]: https://www.raspberrypi.com/products/camera-module-v2/
 [supported Linux distributions]: https://docs.xilinx.com/r/2022.1-English/ug1144-petalinux-tools-reference-guide/Setting-Up-Your-Environment
 [Video Processing Subsystem IP]: https://docs.xilinx.com/r/en-US/pg231-v-proc-ss

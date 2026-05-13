@@ -211,7 +211,7 @@ follow these instructions.
 Now when you use `make` to build the PetaLinux projects, they will be configured for offline build.
 
 [supported Linux distributions]: https://docs.amd.com/r/en-US/ug1144-petalinux-tools-reference-guide/Setting-Up-Your-Environment
-[M.2 M-key Stack FMC]: https://www.fpgadrive.com/docs/m2-mkey-stack-fmc/overview/
-[FPGA Drive FMC Gen4]: https://www.fpgadrive.com/docs/fpga-drive-fmc-gen4/overview/
-[RPi Camera FMC]: https://camerafmc.com/docs/rpi-camera-fmc/overview/
+[M.2 M-key Stack FMC]: https://docs.opsero.com/op073/datasheet/overview/
+[FPGA Drive FMC Gen4]: https://docs.opsero.com/op063/datasheet/overview/
+[RPi Camera FMC]: https://docs.opsero.com/op068/datasheet/overview/
 [ZCU106]: https://www.xilinx.com/zcu106

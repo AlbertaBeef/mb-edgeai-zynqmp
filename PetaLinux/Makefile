@@ -56,7 +56,6 @@ PETL_LOCK = $(PETL_ROOT)/.$(TARGET).lock
 # Hailo recipes
 SUBMOD_PATH = $(PETL_ROOT)/../submodules
 HAILO_RECIPES = $(SUBMOD_PATH)/meta-hailo
-HAILO_PATCH = $(SUBMOD_PATH)/meta-hailo.patch
 
 # These macros return values from the valid target lists defined above
 define get_template_name
@@ -85,12 +84,12 @@ ifeq ($(call get_template_name,$(TARGET)), microblaze)
 	PKG_CMD = petalinux-package --boot --force --fpga $(VIV_BIT) --u-boot --kernel --flash-size $(call get_flash_size,$(TARGET)) --flash-intf $(call get_flash_intf,$(TARGET))
 else ifeq ($(call get_template_name,$(TARGET)), zynq)
 	SSTATE_ARCH = arm
-	BUILD_PRODUCTS = $(PETL_ZYNQ_FSBL_ELF) $(PETL_DTB)
+	BUILD_PRODUCTS = $(PETL_ZYNQ_FSBL_ELF) $(PETL_UBOOT_ELF) $(PETL_DTB)
 	PKG_PRODUCTS = $(PETL_BOOT_BIN)
 	PKG_CMD = petalinux-package --boot --fsbl ./images/linux/zynq_fsbl.elf --fpga $(VIV_BIT) --u-boot
 else ifeq ($(call get_template_name,$(TARGET)), zynqMP)
-	SSTATE_ARCH = arch64
-	BUILD_PRODUCTS = $(PETL_BL31_ELF) $(PETL_PMUFW_ELF) $(PETL_ZYNQMP_FSBL_ELF) $(PETL_DTB)
+	SSTATE_ARCH = aarch64
+	BUILD_PRODUCTS = $(PETL_BL31_ELF) $(PETL_PMUFW_ELF) $(PETL_ZYNQMP_FSBL_ELF) $(PETL_UBOOT_ELF) $(PETL_DTB)
 	PKG_PRODUCTS = $(PETL_BOOT_BIN)
 	PKG_CMD = petalinux-package --boot --fsbl ./images/linux/zynqmp_fsbl.elf --fpga $(VIV_BIT) --u-boot
 endif
@@ -142,7 +141,7 @@ help:
 	@echo ''
 
 .PHONY: petalinux
-petalinux: check_target
+petalinux: check_target check_ca_workaround
 	@if [ -f $(PETL_LOCK) ]; then \
 		echo "$(TARGET) is locked. Skipping..."; \
 	else \
@@ -173,7 +172,14 @@ $(PETL_CFG_DONE): | $(PETL_COMP_DIR)
 	cp -R ./bsp/$(TARGET_BOARD)/project-spec ./$(TARGET)/.
 	-cp -R ./bsp/$(TARGET)/project-spec ./$(TARGET)/.
 	-cp -R $(HAILO_RECIPES) ./$(TARGET)/project-spec/meta-user/.
-	cd $(TARGET)/project-spec/meta-user/meta-hailo && patch -s -p1 < $(HAILO_PATCH)
+	# Upstream meta-hailo-tappas/conf/layer.conf uses LICENSE_PATH = (hard
+	# assignment), wiping out additions from prior layers (meta-qt5,
+	# meta-openembedded). qtbase then fails do_create_spdx with
+	# "Cannot find any text for license The-Qt-Company-GPL-Exception-1.0".
+	# Convert to += in the project-local copy. The submodule itself is
+	# left untouched so `git submodule update` doesn't undo this.
+	-sed -i 's|^LICENSE_PATH = |LICENSE_PATH += |' \
+	    ./$(TARGET)/project-spec/meta-user/meta-hailo/meta-hailo-tappas/conf/layer.conf
 	@if [ ! -z "$(SSTATE_PATH)" ]; then \
 		echo '$(MIRROR_URL)' >> ./$(TARGET)/project-spec/configs/config; \
 		echo '$(SSTATE_FEEDS)' >> ./$(TARGET)/project-spec/configs/config; \
@@ -249,5 +255,32 @@ check_target:
 ifndef $(TARGET)_target
 	$(error "Please specify a TARGET. Use 'make help' to see valid targets.")
 endif
+
+# >>> HAILO-SPECIFIC (do not drop when syncing this Makefile from other repos) <<<
+#
+# PetaLinux 2025.2 ships an eSDK whose git-native has an unrelocated CA-cert
+# path baked into libcurl. libhailort's CMake FetchContent_Declare clones at
+# do_configure time and fails on that path. The README documents a one-time
+# sudo workaround (symlink). This target fails fast with a clear message if
+# the workaround has not been applied yet.
+.PHONY: check_ca_workaround
+check_ca_workaround:
+	@if [ ! -e /usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt ]; then \
+		echo ""; \
+		echo "ERROR: PetaLinux 2025.2 host CA workaround not applied."; \
+		echo ""; \
+		echo "libhailort's CMake clones dependencies at do_configure, using a"; \
+		echo "git-native whose CA path is unrelocated on PetaLinux 2025.2. Without"; \
+		echo "the workaround, the build will fail at libhailort:do_configure."; \
+		echo ""; \
+		echo "Run these once on this host (requires sudo), then re-run make:"; \
+		echo ""; \
+		echo "  sudo mkdir -p /usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs"; \
+		echo "  sudo ln -s /etc/ssl/certs/ca-certificates.crt /usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt"; \
+		echo ""; \
+		echo "Full explanation in README.md, section 'Build issue and workaround'."; \
+		echo ""; \
+		exit 1; \
+	fi
 
 

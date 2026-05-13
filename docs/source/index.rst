@@ -18,9 +18,9 @@ This is the documentation for the Multi-camera ZynqMP Hailo AI reference designs
    supported_carriers
    build_instructions
    petalinux
-   updating
+   advanced
    troubleshooting
    revision_history
 
 
-.. _ZynqMP Hailo AI: https://camerafmc.com/docs/rpi-camera-fmc/overview/
+.. _ZynqMP Hailo AI: https://docs.opsero.com/op068/datasheet/overview/

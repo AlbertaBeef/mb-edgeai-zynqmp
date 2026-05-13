@@ -95,9 +95,9 @@ enable these powerful features. Refer to the list of target designs to see which
 
 
 [AMD Xilinx MIPI CSI Controller Subsystem IP]: https://docs.xilinx.com/r/en-US/pg202-mipi-dphy
-[RPi Camera FMC]: https://camerafmc.com/docs/rpi-camera-fmc/overview/
-[FPGA Drive FMC Gen4]: https://www.fpgadrive.com/docs/fpga-drive-fmc-gen4/overview/
-[M.2 M-key Stack FMC]: https://www.fpgadrive.com/docs/m2-mkey-stack-fmc/overview/
+[RPi Camera FMC]: https://docs.opsero.com/op068/datasheet/overview/
+[FPGA Drive FMC Gen4]: https://docs.opsero.com/op063/datasheet/overview/
+[M.2 M-key Stack FMC]: https://docs.opsero.com/op073/datasheet/overview/
 [Hailo-8 AI accelerator]: https://hailo.ai/products/ai-accelerators/hailo-8-m2-ai-acceleration-module/
 [XDMA]: https://www.xilinx.com/products/intellectual-property/pcie-dma.html
 [GStreamer]: https://gstreamer.freedesktop.org/

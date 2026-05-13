@@ -119,6 +119,31 @@ cd zynqmp-hailo-ai/PetaLinux
 make petalinux TARGET=uzev
 ```
 
+### Expected build time and disk usage
+
+A first-time build runs roughly 14,000 bitbake tasks. With the public
+Xilinx sstate-cache mirror reachable, most are pulled rather than
+compiled locally — only the Hailo recipes (libhailort, hailortcli, the
+TAPPAS post-processes) and the parts of the qt5 stack that depend on
+them build from source.
+
+On the reference build host used during development — Intel Xeon
+E5-2640 v4 @ 2.40 GHz (40 cores), 503 GiB RAM, fast local disk — a
+first-time build for a single target takes roughly **1 to 2 hours**
+wall-clock with `JOBS=8`. Subsequent builds for the same target re-use
+the local sstate and complete in 10–30 minutes. Building multiple
+targets in parallel works well on a host this size; if you do, set
+`JOBS=6` per build (passed to `make`) so the combined load stays
+reasonable.
+
+Disk: budget about **40–50 GiB** per target — most of that is
+`PetaLinux/<target>/build/tmp/` plus the shared `downloads/`
+directory.
+
+On a smaller machine (8–16 cores, 32 GiB RAM is the practical
+minimum), expect a from-scratch single-target build closer to **3 to
+5 hours**.
+
 ### Build issue and workaround
 
 When building the PetaLinux project, you might experience one or more of the following error messages:
@@ -141,22 +166,54 @@ fatal: unable to access 'https://github.com/protocolbuffers/protobuf.git/': erro
 
 #### Explanation:
 
-In order to build the meta-hailo recipes, PetaLinux needs to clone some repositories. To do this, it requires 
-a digital certificate that is expecting to find in path `/usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/`.
-The correct location of the certificate is `/<petalinux-install-path>/2025.2/sysroots/x86_64-petalinux-linux/etc/ssl/certs/`.
+In order to build the meta-hailo recipes, PetaLinux needs to clone some repositories.
+To do this, it requires a digital certificate that it expects to find at
+`/usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt`.
+That path is an OpenEmbedded eSDK relocation placeholder that PetaLinux is meant to
+patch to the real location at install time, but on PetaLinux 2025.2 the relocation
+does not fully fire for the certificate path baked into `git-native`'s libcurl.
+This is a PetaLinux/eSDK packaging issue, not a Hailo or `meta-hailo` issue — a
+from-source Yocto build does not hit it.
 
 #### Work-around:
 
-As a work-around to this issue, we suggest creating a symbolic link so that PetaLinux finds the digital certificate
-where it is expecting to find it.
+Create a symbolic link from the expected path to the host's system CA bundle so
+the missing file is resolvable:
 
 ```
 sudo mkdir -p /usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/
-sudo ln -s /<petalinux-install-path>/2025.2/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt /usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt
+sudo ln -s /etc/ssl/certs/ca-certificates.crt /usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt
 ```
 
-Note that before running the commands, you must replace `<petalinux-install-path>` with the correct path to your PetaLinux
-installation. After running the above commands, delete the failed PetaLinux project (eg. `cd PetaLinux & rm -rf pynqzu`) and re-run make.
+After running the above commands, re-run the build with
+`make clean TARGET=<board>` followed by `make petalinux TARGET=<board>` to
+discard the cached failure.
+
+## Troubleshooting
+
+### PetaLinux build fails with `bitbake petalinux-image-minimal failed` and sstate fetch errors
+
+If a `make petalinux TARGET=<board>` run ends with errors like
+
+```
+ERROR: <package>-<ver>-r0 do_..._setscene: Fetcher failure: Unable to find file file://.../sstate:...
+[ERROR] Command bitbake petalinux-image-minimal failed
+```
+
+the actual build is not broken. These `_setscene` errors come from
+bitbake trying to pull prebuilt artifacts from the public Xilinx
+sstate-cache mirror, which occasionally returns 404 for individual
+packages. Bitbake falls back to building those packages locally and
+succeeds, but still exits non-zero because of the failed fetches —
+so the Makefile stops before the `petalinux-package` step that
+produces `BOOT.BIN`.
+
+**Fix: just re-run the same command.** The second attempt finds the
+missing packages in the local sstate cache (populated by the first
+run) and completes cleanly, producing `BOOT.BIN`. The reference
+design itself is fine; this is a transient issue with the public
+mirror.
+
 
 ## Contribute
 
@@ -179,8 +236,8 @@ design services to start-ups and tech companies. Follow our blog,
 [FPGA Developer](https://www.fpgadeveloper.com "FPGA Developer"), for news, tutorials and
 updates on the awesome projects we work on.
 
-[FPGA Drive FMC Gen4]: https://www.fpgadrive.com/docs/fpga-drive-fmc-gen4/overview/
-[M.2 M-key Stack FMC]: https://www.fpgadrive.com/docs/m2-mkey-stack-fmc/overview/
-[RPi Camera FMC]: https://camerafmc.com/docs/rpi-camera-fmc/overview/
+[FPGA Drive FMC Gen4]: https://docs.opsero.com/op063/datasheet/overview/
+[M.2 M-key Stack FMC]: https://docs.opsero.com/op073/datasheet/overview/
+[RPi Camera FMC]: https://docs.opsero.com/op068/datasheet/overview/
 [Hailo-8 M.2 AI Acceleration Module]: https://hailo.ai/products/ai-accelerators/hailo-8-m2-ai-acceleration-module/
 

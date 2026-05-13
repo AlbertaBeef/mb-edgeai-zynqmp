@@ -43,5 +43,4 @@ CONFIG_libgsthailo
 
 CONFIG_libgsthailotools
 CONFIG_hailo-post-processes
-CONFIG_tappas-apps
 

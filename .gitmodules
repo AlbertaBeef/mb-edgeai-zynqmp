@@ -4,3 +4,4 @@
 [submodule "submodules/meta-hailo"]
 	path = submodules/meta-hailo
 	url = https://github.com/hailo-ai/meta-hailo
+	branch = hailo8-scarthgap
