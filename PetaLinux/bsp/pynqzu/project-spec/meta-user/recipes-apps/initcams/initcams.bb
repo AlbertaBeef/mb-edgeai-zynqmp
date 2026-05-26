@@ -10,7 +10,8 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 SRC_URI = "file://init_cams.sh \
 	   file://displaycams.sh \
 	   file://hailodemo.sh \
-	   file://yolov5m_yuv.hef \
+	   file://yolov5m_wo_spp_yuy2.hef \
+	   file://yolov5.json \
 		  "
 
 S = "${WORKDIR}"
@@ -20,8 +21,10 @@ RDEPENDS:${PN} += "bash"
 do_install() {
         install -d ${D}${bindir}
         install -d ${D}${bindir}/resources
+        install -d ${D}${bindir}/resources/configs
         install -m 0755 ${WORKDIR}/init_cams.sh ${D}${bindir}/
         install -m 0755 ${WORKDIR}/displaycams.sh ${D}${bindir}/
         install -m 0755 ${WORKDIR}/hailodemo.sh ${D}${bindir}/
-        install -m 0644 ${WORKDIR}/yolov5m_yuv.hef ${D}${bindir}/resources/
+        install -m 0644 ${WORKDIR}/yolov5m_wo_spp_yuy2.hef ${D}${bindir}/resources/
+        install -m 0644 ${WORKDIR}/yolov5.json ${D}${bindir}/resources/configs/
 }

@@ -4018,6 +4018,8 @@ CONFIG_packagegroup-self-hosted=y
 CONFIG_initcams=y
 CONFIG_htop=y
 CONFIG_packagegroup-petalinux-matchbox=n
+CONFIG_v4l-utils=y
+CONFIG_yavta=y
 
 CONFIG_ADD_USERS_TO_GROUPS="petalinux:audio,video,disk,kmem;"
 

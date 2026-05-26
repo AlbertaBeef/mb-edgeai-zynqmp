@@ -351,7 +351,7 @@ CONFIG_SUBSYSTEM_SD_PSU_SD_0_SELECT=y
 CONFIG_SUBSYSTEM_SD_PSU_SD_1_SELECT=y
 
 CONFIG_SUBSYSTEM_BOOTARGS_AUTO=n
-CONFIG_SUBSYSTEM_USER_CMDLINE="earlycon console=ttyPS0,115200 clk_ignore_unused root=/dev/mmcblk0p2 rw rootwait cma=1536M"
+CONFIG_SUBSYSTEM_USER_CMDLINE="earlycon console=ttyPS0,115200 clk_ignore_unused root=/dev/mmcblk0p2 rw rootwait cma=1536M xlnx_mixer.connect_drm_bridge=1"
 
 CONFIG_SUBSYSTEM_ROOTFS_INITRD=n
 CONFIG_SUBSYSTEM_ROOTFS_EXT4=y

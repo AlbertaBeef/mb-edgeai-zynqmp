@@ -25,10 +25,10 @@ CURRENT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 function init_variables() {
     readonly RESOURCES_DIR="${CURRENT_DIR}/resources"
     readonly POSTPROCESS_DIR="/usr/lib/hailo-post-processes"
-    readonly DEFAULT_POSTPROCESS_SO="$POSTPROCESS_DIR/libyolo_post.so"
+    readonly DEFAULT_POSTPROCESS_SO="$POSTPROCESS_DIR/libyolo_hailortpp_post.so"
     readonly DEFAULT_NETWORK_NAME="yolov5"
     readonly DEFAULT_VIDEO_SOURCE="/dev/video0"
-    readonly DEFAULT_HEF_PATH="${RESOURCES_DIR}/${DEFAULT_NETWORK_NAME}m_yuv.hef"
+    readonly DEFAULT_HEF_PATH="${RESOURCES_DIR}/${DEFAULT_NETWORK_NAME}m_wo_spp_yuy2.hef"
     readonly DEFAULT_JSON_CONFIG_PATH="$RESOURCES_DIR/configs/yolov5.json"
 
     postprocess_so=$DEFAULT_POSTPROCESS_SO
@@ -71,6 +71,19 @@ VMIX=$(basename "$VMIX_PATH")
 # Find out the monitor's highest resolution
 output=$(modetest -c -M xlnx | grep "#0")
 DISP_RES=$(echo "$output" | awk '{print $2}')
+# Refresh rate (Hz) — pinned because the PL pixel-clock wizard only
+# produces the standard 60 Hz rate; without pinning, modetest picks the
+# first mode (often 144 Hz) and the dpsub silently rejects it.
+DISP_RATE=60
+
+# Each camera quadrant is half the display in each dimension so the 2x2 grid
+# fills exactly one screen. Camera/HEF input stays at OUT_RES (1280x720,
+# what the yolov5m_wo_spp_yuy2 HEF expects); kmssink's render-rectangle +
+# can-scale=true lets the v_mix scaler resize each stream to its quadrant.
+DISP_W=${DISP_RES%x*}
+DISP_H=${DISP_RES#*x}
+QUAD_W=$((DISP_W / 2))
+QUAD_H=$((DISP_H / 2))
 
 echo "-------------------------------------------------"
 echo " Capture pipeline init: RPi cam -> Scaler -> DDR"
@@ -157,21 +170,49 @@ done
 
 init_variables $@
 
+# Discover the DRM connector, CRTC and YUYV overlay plane IDs dynamically.
+# Required because IDs shift across kernel revisions (e.g. 2022.1 gave us
+# connector=60, crtc=46, overlay planes=34/36/38/40; 2025.2 gives 49/47/35-41).
+MT=$(modetest -M xlnx -D ${VMIX} 2>/dev/null)
 
-# Setup the split-display pipeline
-echo | modetest -M xlnx -D ${VMIX} -s 60@46:${DISP_RES}@NV16
+# First "connected" connector (column 3 == "connected").
+CONN_ID=$(awk '/^Connectors:/{f=1;next} /^CRTCs:/{f=0}
+               f && $3=="connected" {print $1; exit}' <<<"$MT")
+
+# First CRTC ID (the mixer registers one CRTC; that's the one we want).
+CRTC_ID=$(awk '/^CRTCs:/{f=1;next} /^Planes:/{f=0}
+               f && $1 ~ /^[0-9]+$/ {print $1; exit}' <<<"$MT")
+
+# All overlay plane IDs whose format list contains YUYV (one per camera).
+mapfile -t YUYV_PLANES < <(awk '
+        /^Planes:/{f=1;next} /^Frame buffers:/{f=0}
+        f && $1 ~ /^[0-9]+$/ {plane=$1}
+        f && /formats:.*YUYV/ {print plane}' <<<"$MT")
+
+if [[ -z "$CONN_ID" || -z "$CRTC_ID" || ${#YUYV_PLANES[@]} -lt 4 ]]; then
+        echo "ERROR: could not discover DRM ids (conn=$CONN_ID crtc=$CRTC_ID yuyv_planes=${YUYV_PLANES[*]})" >&2
+        exit 1
+fi
+
+# Initialize the display pipeline. The -${DISP_RATE} suffix pins the refresh
+# rate so modetest doesn't pick a too-fast mode (e.g. 144 Hz) that the PL
+# pixel-clock wizard can't drive.
+echo | modetest -M xlnx -D ${VMIX} -s ${CONN_ID}@${CRTC_ID}:${DISP_RES}-${DISP_RATE}@NV16
 
 #------------------------------------------------------------------------------
 # Run GStreamer to combine all videos and display on the screen
 #-------------------------------------------------------------------------------
 full_command="gst-launch-1.0 -v "
 
-# Screen quadrants: TOP-LEFT, TOP-RIGHT, BOTTOM-LEFT, BOTTOM-RIGHT
+# Screen quadrants: TOP-LEFT, TOP-RIGHT, BOTTOM-LEFT, BOTTOM-RIGHT.
+# render-rectangle uses the spaced "< x, y, w, h >" form (the kmssink-
+# documented format) and can-scale=true; with can-scale=false the kmssink
+# in 2025.2 silently ignores render-rectangle and centers the video.
 quadrants=(
-        "plane-id=34 render-rectangle=\"<0,0,${OUT_RES_W},${OUT_RES_H}>\""
-        "plane-id=36 render-rectangle=\"<${OUT_RES_W},0,${OUT_RES_W},${OUT_RES_H}>\""
-        "plane-id=38 render-rectangle=\"<0,${OUT_RES_H},${OUT_RES_W},${OUT_RES_H}>\""
-        "plane-id=40 render-rectangle=\"<${OUT_RES_W},${OUT_RES_H},${OUT_RES_W},${OUT_RES_H}>\""
+        "plane-id=${YUYV_PLANES[0]} render-rectangle=\"< 0, 0, ${QUAD_W}, ${QUAD_H} >\""
+        "plane-id=${YUYV_PLANES[1]} render-rectangle=\"< ${QUAD_W}, 0, ${QUAD_W}, ${QUAD_H} >\""
+        "plane-id=${YUYV_PLANES[2]} render-rectangle=\"< 0, ${QUAD_H}, ${QUAD_W}, ${QUAD_H} >\""
+        "plane-id=${YUYV_PLANES[3]} render-rectangle=\"< ${QUAD_W}, ${QUAD_H}, ${QUAD_W}, ${QUAD_H} >\""
 )
 
 index=0
@@ -183,10 +224,10 @@ for media in "${!media_to_video_mapping[@]}"; do
         full_command+="video/x-raw, width=${OUT_RES_W}, height=${OUT_RES_H}, format=${OUT_FORMAT}, framerate=${FRM_RATE}/1 ! "
         full_command+="synchailonet hef-path=$hef_path scheduling-algorithm=1 batch-size=1 vdevice-key=1 ! "
         full_command+="queue leaky=2 max-size-buffers=3 ! "
-        full_command+="hailofilter function-name=$network_name config-path=$json_config_path so-path=$postprocess_so qos=false ! "
+        full_command+="hailofilter config-path=$json_config_path so-path=$postprocess_so qos=false ! "
         full_command+="queue leaky=2 max-size-buffers=10  ! "
         full_command+="hailooverlay ! "
-        full_command+="kmssink bus-id=${VMIX} ${quadrants[$index]} show-preroll-frame=false sync=false can-scale=false "
+        full_command+="kmssink bus-id=${VMIX} ${quadrants[$index]} show-preroll-frame=false sync=false can-scale=true "
         index=$((index + 1))
 done
 
