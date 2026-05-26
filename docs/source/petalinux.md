@@ -90,9 +90,12 @@ losing data on one of your hard drives.
 
 ## Boot from SD card
 
-1. Plug the SD card into your target board.
+1. Plug the SD card into your target board. The UltraZed-EV carrier boots from the
+   SD1 slot on the carrier (the BSP sets `CONFIG_SUBSYSTEM_PRIMARY_SD_PSU_SD_1_SELECT=y`
+   and the rootfs is mounted from `/dev/mmcblk1p2`). For the ZCU104, ZCU106, and PYNQ-ZU
+   the rootfs lives on `/dev/mmcblk0p2`.
 2. Ensure that the target board is configured to boot from SD card:
-   * **ZCU10x:** DIP switch SW6 must be set to 1000 (1=ON,2=OFF,3=OFF,4=OFF)
+   * **ZCU104 / ZCU106:** DIP switch SW6 must be set to 1000 (1=ON,2=OFF,3=OFF,4=OFF)
    * **PYNQ-ZU:** Switch labelled "JTAG SD" must be flipped to the right (towards "SD")
    * **UltraZed-EV:** DIP switch SW2 (on the SoM) is set to 1000 (1=ON,2=OFF,3=OFF,4=OFF)
 3. Connect the [M.2 M-key Stack FMC] and [RPi Camera FMC] to the FMC connector of the target board. Connect one or more
@@ -105,24 +108,26 @@ losing data on one of your hard drives.
 
 ## Test the cameras
 
-1. Log into PetaLinux using the username `petalinux`. The first time you boot, you will be forced to set the
-   password for this user. On subsequent boots, you will be required to use the chosen password.
+1. Log into PetaLinux using the username `petalinux`. On the first boot you will be prompted to set the
+   password for this user before the shell starts (the BSPs ship with the AMD default expired-password
+   policy). On subsequent boots, use the chosen password. The `hailodemo.sh` and `displaycams.sh` scripts
+   require `sudo`, which will prompt for the same password.
 2. Check that the cameras have been enumerated correctly by running the `v4l2-ctl --list-devices` command.
    The output should be similar to the following:
    ```
-   zcu104rpicamfmc20241:~$ v4l2-ctl --list-devices
+   zcu104-hailo-2025-2:~$ v4l2-ctl --list-devices
    vcap_mipi_0_v_proc output 0 (platform:vcap_mipi_0_v_proc:0):
            /dev/video0
-   
+
    vcap_mipi_1_v_proc output 0 (platform:vcap_mipi_1_v_proc:0):
            /dev/video1
-   
+
    vcap_mipi_2_v_proc output 0 (platform:vcap_mipi_2_v_proc:0):
            /dev/video2
-   
+
    vcap_mipi_3_v_proc output 0 (platform:vcap_mipi_3_v_proc:0):
            /dev/video3
-   
+
    Xilinx Video Composite Device (platform:xilinx-video):
            /dev/media0
            /dev/media1
@@ -139,7 +144,38 @@ losing data on one of your hard drives.
 
 4. Run the Hailo demo script with the command `sudo hailodemo.sh`.
    The script is located in `/usr/bin` and it can be used to run YOLOv5 on all connected cameras and display
-   the video streams with bounding boxes on the monitor.
+   the video streams with bounding boxes on the monitor. With four cameras connected to the ZCU104, the
+   script prints output similar to:
+
+   ```
+   -------------------------------------------------
+    Capture pipeline init: RPi cam -> Scaler -> DDR
+   -------------------------------------------------
+   Configuring all video capture pipelines to:
+    - RPi Camera output    : 1920 x 1080
+    - Scaler (VPSS) output : 1280 x 720 YUY2
+    - Frame rate           : 25 fps
+   Video Mixer found here:
+    - a0000000.v_mix
+   Monitor resolution:
+    - 2560x1440
+   Detected and configured the following cameras on RPi Camera FMC:
+    - CAM0: /dev/media0 = /dev/video0
+    - CAM1: /dev/media1 = /dev/video1
+    - CAM2: /dev/media2 = /dev/video2
+    - CAM3: /dev/media3 = /dev/video3
+   ```
+
+   At boot, the Hailo PCIe driver also logs to the kernel ring buffer:
+
+   ```
+   hailo: Init module. driver version 4.23.0
+   hailo 0000:01:00.0: Probing on: 1e60:2864...
+   hailo 0000:01:00.0: NNC Firmware loaded successfully
+   hailo 0000:01:00.0: Probing: Added board 1e60-2864, /dev/hailo0
+   ```
+
+   If `/dev/hailo0` is not present, the demo script will fail.
 
 
 ## Known issues and limitations
@@ -161,7 +197,7 @@ CAM1 and CAM2.
 [RPi Camera FMC]: https://docs.opsero.com/op068/datasheet/overview/
 [M.2 M-key Stack FMC]: https://docs.opsero.com/op073/datasheet/overview/
 [Raspberry Pi camera module v2]: https://www.raspberrypi.com/products/camera-module-v2/
-[supported Linux distributions]: https://docs.xilinx.com/r/2022.1-English/ug1144-petalinux-tools-reference-guide/Setting-Up-Your-Environment
+[supported Linux distributions]: https://docs.amd.com/r/en-US/ug1144-petalinux-tools-reference-guide/Setting-Up-Your-Environment
 [Video Processing Subsystem IP]: https://docs.xilinx.com/r/en-US/pg231-v-proc-ss
 
 

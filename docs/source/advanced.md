@@ -498,11 +498,15 @@ the stock one?"* — it is what to re-apply if you ever do that.
 ### All BSPs
 
 * **Hostname / product name** set in `configs/config` via
-  `CONFIG_SUBSYSTEM_HOSTNAME` and `CONFIG_SUBSYSTEM_PRODUCT`.
+  `CONFIG_SUBSYSTEM_HOSTNAME` and `CONFIG_SUBSYSTEM_PRODUCT`. Latest
+  values are `zcu104-hailo-2025-2`, `zcu106-hailo-2025-2`,
+  `pynqzu-hailo-2025-2`, `uzev-hailo-2025-2`.
 * **SD-card root filesystem** configured in `configs/config`:
   `CONFIG_SUBSYSTEM_ROOTFS_EXT4`, `CONFIG_SUBSYSTEM_SDROOT_DEV`,
   `CONFIG_SUBSYSTEM_USER_CMDLINE` (with `cma=` raised for video frame
-  buffers and Hailo network buffers).
+  buffers and Hailo network buffers, and
+  `xlnx_mixer.connect_drm_bridge=1` to route v_mix into DPSUB via the
+  2025.2 DRM-bridge path).
 * **Custom `system-user.dtsi`** with device-tree nodes for the
   RPi-camera I²C bus, camera sensors, clock generator, frame-buffer /
   video pipeline, and the Hailo VPU PCIe endpoint.
@@ -513,28 +517,103 @@ the stock one?"* — it is what to re-apply if you ever do that.
   C++ header-only libraries that the Hailo TAPPAS pipeline depends
   on to the rootfs (and to the SDK sysroot, for cross-compiling
   user applications).
-* **U-Boot patch `0001-ubifs-distroboot-support.patch`**.
+* **U-Boot patch `0001-ubifs-distroboot-support.patch`** staged under
+  `recipes-bsp/u-boot/files/`. Note that the canonical `u-boot-xlnx_%.bbappend`
+  in the BSP only references `platform-top.h` and `bsp.cfg` via `SRC_URI:append`;
+  the `.patch` file is present in the `files/` directory but is not currently
+  hooked into `SRC_URI`, so it is staged but inert. Add an
+  `SRC_URI:append = " file://0001-ubifs-distroboot-support.patch"` line if
+  you need UBIFS distroboot for QSPI flash boot.
+* **`hailo-pci_4.23.0.bbappend` + `0001-vdma-take-mmap_read_lock-around-find_vma.patch`**
+  under `recipes-kernel/hailo-pci/`. The HailoRT v4.23 `hailo_pci` driver
+  calls `find_vma()` without holding `mmap_lock`, which is fatal on
+  kernel ≥ 6.5 (PetaLinux 2025.2 ships kernel 6.12 and asserts in
+  `include/linux/rwsem.h`). The patch wraps the call in
+  `mmap_read_lock`/`mmap_read_unlock`, backporting the fix Hailo
+  already shipped on its `v5.3.0-hotfix-kernel-above-6-15` branch. The
+  bbappend applies the patch idempotently from `do_compile:prepend()`
+  (not via `SRC_URI`, because the recipe's `S` is set to a sibling
+  directory of the patch target, so `do_patch` cannot reach it).
+* **`linux-xlnx_%.bbappend` + three DRM patches** under
+  `recipes-kernel/linux/linux-xlnx/`, all required when the v_mix
+  driver runs in DRM-bridge mode
+  (`xlnx_mixer.connect_drm_bridge=1`):
+  - `0001-drm-xlnx-mixer-fix-NULL-deref-in-connector_init.patch`
+    fixes a NULL deref where `xlnx_mix_connector_init()` dereferences
+    `mixer->master` before it has been assigned by
+    `xlnx_drm_pipeline_init()`.
+  - `0002-drm-xlnx-drv-drop-mode_config_cleanup-on-unbind.patch`
+    removes the manual `drm_mode_config_cleanup()` from
+    `xlnx_unbind()` — drm_managed-based connectors registered by the
+    bridge path would otherwise be cleaned up twice (NULL deref +
+    `ida_free` on an unallocated ID at poweroff/reboot).
+  - `0003-drm-xlnx-drv-disable-vblank-before-cleanup-on-shutdown.patch`
+    calls `drm_atomic_helper_shutdown()` at the start of
+    `xlnx_unbind()` so vblank is disabled before drm_managed
+    teardown runs, silencing a `WARN_ON` at shutdown.
 
 ### ZCU104 BSP
 
 * **FSBL patch `zcu104_vadj_fsbl.patch`** in
   `recipes-bsp/embeddedsw/files/`, registered via
-  `fsbl-firmware_%.bbappend`. The ZCU104 FSBL is patched to program the
-  on-board IRPS5401 PMBus regulator to 1.8V before the FMC PHYs
-  come out of reset.
+  `fsbl-firmware_%.bbappend`. The stock 2025.2 ZCU104 FSBL reads the
+  wrong I²C address (it reads the on-board EEPROM at 0x54, not the FMC
+  EEPROM at 0x50) and reads only 32 bytes, which is too short to cover
+  the VADJ voltage record. Without the patch, VADJ is not properly
+  programmed for the FMC. The patch also fixes the I²C mux channel
+  selection so the FMC EEPROM is reachable.
+* **`sdhci1` device-tree override** in `system-user.dtsi`. Opsero ZynqMP
+  Vivado designs export a minimal `sdhci1` node, which causes a -110
+  timeout during SD init on PetaLinux 2025.2. The BSP re-adds the
+  properties (clock-frequency, bus-width, no-1-8-v, etc.) the stock
+  AMD ZCU104 BSP carries.
+* **2025.2 embeddedsw patching mechanics.** The `fsbl-firmware_%.bbappend`
+  declares `SRC_URI:append = " file://zcu104_vadj_fsbl.patch;apply=no"`
+  and adds a new shell task that runs `patch -p1` between
+  `do_copy_shared_src` and `do_configure`. This is required because
+  2025.2's `xlnx-embeddedsw.bbclass` schedules `do_copy_shared_src`
+  *after* `do_patch`, so the normal `SRC_URI`-attached patch
+  mechanism cannot find the source tree.
 
 ### UltraZed-EV (uzev) BSP
 
 * **`CONFIG_YOCTO_MACHINE_NAME="zynqmp-generic"`** in `configs/config`
   (the UZ-EV is not a stock Xilinx eval board).
 * **SD-card device set to `/dev/mmcblk1p2`** rather than the ZynqMP
-  default `mmcblk0p2`.
+  default `mmcblk0p2`. The carrier exposes both PSU SD0 (eMMC on the
+  SoM) and PSU SD1 (carrier SD slot); boot uses PSU SD1.
 * **`PRIMARY_SD_PSU_SD_1_SELECT=y`** to route the boot SD interface
   through PSU SD1 instead of SD0.
+* **`CMA=1000M`** rather than the default 1536M used on ZCU10x boards
+  — the UZ-EV ships with less DDR. Note: the uzev `configs/config`
+  intentionally contains two `CONFIG_SUBSYSTEM_USER_CMDLINE` lines —
+  the first inherits the ZynqMP defaults, the second (in the
+  `# UZ-EV configs` block) overrides `mmcblk0p2` → `mmcblk1p2` and
+  `cma=1536M` → `cma=1000M`. The last assignment wins.
+* **UART0 forced** for PMUFW / FSBL / TF-A / Linux. Vivado 2025.2's
+  `gen-machine-conf` flow defaults to PSU_UART_1 on this board, but
+  the carrier's USB-serial interface is wired to PSU_UART_0, so the
+  BSP explicitly selects `CONFIG_SUBSYSTEM_*_SERIAL_PSU_UART_0_SELECT=y`.
 * **Custom `system-user.dtsi`** with UZ-EV-specific peripheral
   configuration.
 * **`meta-xilinx-tools/recipes-bsp/uboot-device-tree/`** overlay that
   overrides the U-Boot device tree.
+
+### ZCU106 BSPs (`zcu106` and `zcu106_hpc0`)
+
+Both targets share the same board BSP under `PetaLinux/bsp/zcu106/`
+because `PetaLinux/Makefile` derives the board name from the first
+underscore-delimited token of `TARGET`. There is no per-target BSP
+overlay for `zcu106_hpc0` — the only difference between the two is the
+Vivado design.
+
+### Genesys-ZU (`genesyszu`)
+
+The Vivado target is defined and synthesizes, but there is no
+PetaLinux BSP under `PetaLinux/bsp/genesyszu/` and `data.json` has
+`"publish": false` and `"petalinux": false`. The design is excluded
+from the published target list in the docs. To bring it up,
+add a `PetaLinux/bsp/genesyszu/` BSP and flip the data.json flags.
 
 ### PYNQ-ZU BSP
 

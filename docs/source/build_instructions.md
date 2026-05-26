@@ -54,8 +54,8 @@ All target designs except `zcu106` require the [M.2 M-key Stack FMC] as the M.2 
 3. The `zcu106` target design uses the [FPGA Drive FMC Gen4] as the M.2 adapter for the Hailo-8.
    In that design, the [FPGA Drive FMC Gen4] connects to HPC1 while the [RPi Camera FMC] connects
    to the HPC0 connector.
-4. The `pynqzu` and `genesyszu` target designs have video pipelines for only 2 cameras (CAM1 and CAM2 as
-   labelled on the RPi Camera FMC). This is due to the resource limitations of the devices on these boards.
+4. The `pynqzu` target design has video pipelines for only 2 cameras (CAM1 and CAM2 as
+   labelled on the RPi Camera FMC). This is due to the resource limitations of the device on this board.
 5. The `zcu106_hpc0` and `uzev` target designs have support for 2x M.2 modules. To use the Hailo demo scripts,
    at least one of these modules must be the [Hailo-8 M.2 AI Acceleration Module]. The second slot can be used
    for a second Hailo module, or an NVMe SSD for storage.
@@ -144,12 +144,12 @@ design if it has not already been done.
 When building the PetaLinux project, you might experience one or more of the following error messages:
 
 ```
-ERROR: hailortcli-4.19.0-r0 do_configure: ExecutionError('/home/user/zynqmp-hailo-ai/PetaLinux/zcu106/build/tmp/work/cortexa72-cortexa53-xilinx-linux/hailortcli/4.19.0-r0/temp/run.do_configure.2849196', 1, None, None)
-ERROR: Logfile of failure stored in: /home/user/zynqmp-hailo-ai/PetaLinux/zcu106/build/tmp/work/cortexa72-cortexa53-xilinx-linux/hailortcli/4.19.0-r0/temp/log.do_configure.2849196
-ERROR: Task (/home/user/zynqmp-hailo-ai/PetaLinux/zcu106/project-spec/meta-user/meta-hailo/meta-hailo-libhailort/recipes-hailo/hailortcli/hailortcli_4.19.0.bb:do_configure) failed with exit code '1'
-ERROR: libhailort-4.19.0-r0 do_configure: ExecutionError('/home/user/zynqmp-hailo-ai/PetaLinux/zcu106/build/tmp/work/cortexa72-cortexa53-xilinx-linux/libhailort/4.19.0-r0/temp/run.do_configure.2851680', 1, None, None)
-ERROR: Logfile of failure stored in: /home/user/zynqmp-hailo-ai/PetaLinux/zcu106/build/tmp/work/cortexa72-cortexa53-xilinx-linux/libhailort/4.19.0-r0/temp/log.do_configure.2851680
-ERROR: Task (/home/user/zynqmp-hailo-ai/PetaLinux/zcu106/project-spec/meta-user/meta-hailo/meta-hailo-libhailort/recipes-hailo/libhailort/libhailort_4.19.0.bb:do_configure) failed with exit code '1'
+ERROR: hailortcli-4.23.0-r0 do_configure: ExecutionError('/home/user/zynqmp-hailo-ai/PetaLinux/zcu106/build/tmp/work/cortexa72-cortexa53-xilinx-linux/hailortcli/4.23.0-r0/temp/run.do_configure.2849196', 1, None, None)
+ERROR: Logfile of failure stored in: /home/user/zynqmp-hailo-ai/PetaLinux/zcu106/build/tmp/work/cortexa72-cortexa53-xilinx-linux/hailortcli/4.23.0-r0/temp/log.do_configure.2849196
+ERROR: Task (/home/user/zynqmp-hailo-ai/PetaLinux/zcu106/project-spec/meta-user/meta-hailo/meta-hailo-libhailort/recipes-hailo/hailortcli/hailortcli_4.23.0.bb:do_configure) failed with exit code '1'
+ERROR: libhailort-4.23.0-r0 do_configure: ExecutionError('/home/user/zynqmp-hailo-ai/PetaLinux/zcu106/build/tmp/work/cortexa72-cortexa53-xilinx-linux/libhailort/4.23.0-r0/temp/run.do_configure.2851680', 1, None, None)
+ERROR: Logfile of failure stored in: /home/user/zynqmp-hailo-ai/PetaLinux/zcu106/build/tmp/work/cortexa72-cortexa53-xilinx-linux/libhailort/4.23.0-r0/temp/log.do_configure.2851680
+ERROR: Task (/home/user/zynqmp-hailo-ai/PetaLinux/zcu106/project-spec/meta-user/meta-hailo/meta-hailo-libhailort/recipes-hailo/libhailort/libhailort_4.23.0.bb:do_configure) failed with exit code '1'
 ```
 
 If you open one of the logfiles of those error messages, you will find error messages that are similar to the following:
@@ -161,22 +161,49 @@ fatal: unable to access 'https://github.com/protocolbuffers/protobuf.git/': erro
 
 #### Explanation:
 
-In order to build the meta-hailo recipes, PetaLinux needs to clone some repositories. To do this, it requires 
-a digital certificate that is expecting to find in path `/usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/`.
-The correct location of the certificate is `/<petalinux-install-path>/2024.1/sysroots/x86_64-petalinux-linux/etc/ssl/certs/`.
+In order to build the meta-hailo recipes, PetaLinux needs to clone some repositories.
+To do this, it requires a digital certificate that it expects to find at
+`/usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt`.
+That path is an OpenEmbedded eSDK relocation placeholder that PetaLinux is meant to
+patch to the real location at install time, but on PetaLinux 2025.2 the relocation
+does not fully fire for the certificate path baked into `git-native`'s libcurl.
+This is a PetaLinux/eSDK packaging issue, not a Hailo or `meta-hailo` issue — a
+from-source Yocto build does not hit it.
 
 #### Work-around:
 
-As a work-around to this issue, we suggest creating a symbolic link so that PetaLinux finds the digital certificate
-where it is expecting to find it.
+Create a symbolic link from the expected path to the host's system CA bundle so
+the missing file is resolvable:
 
 ```
 sudo mkdir -p /usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/
-sudo ln -s /<petalinux-install-path>/2024.1/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt /usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt
+sudo ln -s /etc/ssl/certs/ca-certificates.crt /usr/local/oe-sdk-hardcoded-buildpath/sysroots/x86_64-petalinux-linux/etc/ssl/certs/ca-certificates.crt
 ```
 
-Note that before running the commands, you must replace `<petalinux-install-path>` with the correct path to your PetaLinux
-installation. After running the above commands, delete the failed PetaLinux project (eg. `cd PetaLinux & rm -rf pynqzu`) and re-run make.
+After running the above commands, re-run the build with
+`make clean TARGET=<board>` followed by `make petalinux TARGET=<board>` to
+discard the cached failure. `PetaLinux/Makefile` also runs a
+`check_ca_workaround` prerequisite target that fails fast with the same
+instructions if the symlink has not been applied yet.
+
+### Transient sstate fetch failures
+
+If a `make petalinux TARGET=<board>` run ends with errors like
+
+```
+ERROR: <package>-<ver>-r0 do_..._setscene: Fetcher failure: Unable to find file file://.../sstate:...
+[ERROR] Command bitbake petalinux-image-minimal failed
+```
+
+the actual build is not broken. These `_setscene` errors come from
+bitbake trying to pull prebuilt artifacts from the public Xilinx
+sstate-cache mirror, which occasionally returns 404 for individual
+packages. Bitbake falls back to building those packages locally and
+succeeds, but still exits non-zero because of the failed fetches —
+so the Makefile stops before the `petalinux-package` step that
+produces `BOOT.BIN`. Re-run the same `make petalinux TARGET=<board>`
+command; the second attempt finds the missing packages in the local
+sstate cache populated by the first run and completes cleanly.
 
 ### PetaLinux offline build
 
