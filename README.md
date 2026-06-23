@@ -61,13 +61,13 @@ All target designs except `zcu106` require the [M.2 M-key Stack FMC] as the M.2 
 <!-- updater start -->
 ### Zynq UltraScale+ designs
 
-| Target board          | Target design   | FMC Slot(s) | Cameras | Active M.2 Slots | VCU   | Stack Design | Vivado<br> Edition |
-|-----------------------|-----------------|-------------|---------|------------------|-------|--------------|-------|
-| [ZCU104]              | `zcu104`        | LPC         | 4     | 1     | :white_check_mark: | :white_check_mark: | Standard :free: |
-| [ZCU106]              | `zcu106`        | HPC0+HPC1   | 4     | 1     | :white_check_mark: | :x:                | Standard :free: |
-| [ZCU106]              | `zcu106_hpc0`   | HPC0        | 4     | 2     | :white_check_mark: | :white_check_mark: | Standard :free: |
-| [PYNQ-ZU]             | `pynqzu`        | LPC         | 2     | 1     | :x:                | :white_check_mark: | Standard :free: |
-| [UltraZed-EV Carrier] | `uzev`          | HPC         | 4     | 2     | :white_check_mark: | :white_check_mark: | Standard :free: |
+| Target board          | Target design   | FMC Slot(s) | Cameras | Active M.2 Slots | VCU   | Stack Design | Vivado<br> Edition | IP<br>License |
+|-----------------------|-----------------|-------------|---------|------------------|-------|--------------|-------|-------|
+| [ZCU104]              | `zcu104`        | LPC         | 4     | 1     | :white_check_mark: | :white_check_mark: | Standard :free: | -     |
+| [ZCU106]              | `zcu106`        | HPC0+HPC1   | 4     | 1     | :white_check_mark: | :x:                | Standard :free: | -     |
+| [ZCU106]              | `zcu106_hpc0`   | HPC0        | 4     | 2     | :white_check_mark: | :white_check_mark: | Standard :free: | -     |
+| [PYNQ-ZU]             | `pynqzu`        | LPC         | 2     | 1     | :x:                | :white_check_mark: | Standard :free: | -     |
+| [UltraZed-EV Carrier] | `uzev`          | HPC         | 4     | 2     | :white_check_mark: | :white_check_mark: | Standard :free: | -     |
 
 [ZCU104]: https://www.xilinx.com/zcu104
 [ZCU106]: https://www.xilinx.com/zcu106
@@ -100,24 +100,58 @@ All target designs except `zcu106` require the [M.2 M-key Stack FMC] as the M.2 
 
 ## Build instructions
 
-This repo contains submodules. To clone this repo, run:
+Clone the repo and change into its directory:
 ```
 git clone --recursive https://github.com/fpgadeveloper/zynqmp-hailo-ai.git
+cd zynqmp-hailo-ai
 ```
 
-Source Vivado and PetaLinux tools:
+### Cross-platform build runner
+
+All builds are driven by `build.py` at the repo root, on both Windows
+(git bash) and Linux. The `build.sh` / `build.bat` shim finds a suitable
+Python 3 automatically (including the one bundled with the AMD tools).
+Pick a target design label from the tables above (or run `./build.sh
+list`), then run the build command for the stage(s) you want — each
+command builds whatever it depends on automatically and skips anything
+already built. On Windows without git bash, run the same commands from
+Command Prompt or PowerShell using `build.bat` (e.g. `build.bat xsa
+--target <target>`).
+
+You don't need to source the AMD tools first — the build runner finds
+Vivado, Vitis and PetaLinux automatically in their standard install
+locations and sets up the environment each stage needs. If your tools
+are installed somewhere non-standard and the runner can't find them,
+source the tool settings yourself before running the build.
+
+#### Build the Vivado project (bitstream + XSA)
 
 ```
-source <path-to-petalinux>/2025.2/settings.sh
-source <path-to-xilinx-tools>/2025.2/Vivado/settings64.sh
+./build.sh xsa --target <target>
 ```
 
-Build all (Vivado project, accelerator kernel and PetaLinux):
+#### Build PetaLinux (Linux only)
 
 ```
-cd zynqmp-hailo-ai/PetaLinux
-make petalinux TARGET=uzev
+./build.sh petalinux --target <target>
 ```
+
+#### Build everything
+
+Builds all of the above that the target supports, then gathers the boot
+images into `bootimages/*.zip`:
+
+```
+./build.sh all --target <target>
+./build.sh all --target all          # every target in the repo
+```
+
+Also available: `status`, `clean`, `project` — see
+`./build.sh --help`. On Windows, the PetaLinux and Yocto stages require a
+Linux machine; the runner says so and prints the hand-off command. The
+legacy `make` interface still works on Linux (each Makefile now wraps
+`build.sh`) but is deprecated and will be removed at the next version
+update.
 
 ### Expected build time and disk usage
 
@@ -188,32 +222,6 @@ sudo ln -s /etc/ssl/certs/ca-certificates.crt /usr/local/oe-sdk-hardcoded-buildp
 After running the above commands, re-run the build with
 `make clean TARGET=<board>` followed by `make petalinux TARGET=<board>` to
 discard the cached failure.
-
-## Troubleshooting
-
-### PetaLinux build fails with `bitbake petalinux-image-minimal failed` and sstate fetch errors
-
-If a `make petalinux TARGET=<board>` run ends with errors like
-
-```
-ERROR: <package>-<ver>-r0 do_..._setscene: Fetcher failure: Unable to find file file://.../sstate:...
-[ERROR] Command bitbake petalinux-image-minimal failed
-```
-
-the actual build is not broken. These `_setscene` errors come from
-bitbake trying to pull prebuilt artifacts from the public Xilinx
-sstate-cache mirror, which occasionally returns 404 for individual
-packages. Bitbake falls back to building those packages locally and
-succeeds, but still exits non-zero because of the failed fetches —
-so the Makefile stops before the `petalinux-package` step that
-produces `BOOT.BIN`.
-
-**Fix: just re-run the same command.** The second attempt finds the
-missing packages in the local sstate cache (populated by the first
-run) and completes cleanly, producing `BOOT.BIN`. The reference
-design itself is fine; this is a transient issue with the public
-mirror.
-
 
 ## Contribute
 

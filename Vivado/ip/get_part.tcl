@@ -7,9 +7,12 @@
 # Add Xilinx board store to the repo paths
 set_param board.repoPaths [get_property LOCAL_ROOT_DIR [xhub::get_xstores xilinx_board_store]]
 
-# Board url and name must be fed as command line arguments
+# Board url, board name, and target must be fed as command line arguments. The
+# board is used to look up the device part; the target keys the per-target build
+# dir so each target owns its generated IP.
 set board_url [lindex $argv 0]
 set board_name [lindex $argv 1]
+set target [lindex $argv 2]
 
 # Get the part name from the board URL and board name
 set proj_board [get_board_parts "$board_url:$board_name:*" -latest_file_version]
@@ -27,8 +30,8 @@ set XPART [get_property PART_NAME [get_board_parts $proj_board]]
 
 # Create the Tcl script that run_hls.tcl will call
 
-# Set the directory and file names
-set directory "build/$board_name"
+# Set the directory and file names (per-target)
+set directory "build/$target"
 
 # Check if the directory exists, create if it does not
 if { ![file exists $directory] } {

@@ -20,7 +20,7 @@ Check the following if the project fails to build or generate a bitstream:
 
 4. **`bitbake petalinux-image-minimal failed` with `_setscene Fetcher failure`
    errors.** Transient public sstate mirror 404s. Re-run the same
-   `make petalinux TARGET=<board>` command; the second attempt finds
+   `./build.sh petalinux --target <board>` command; the second attempt finds
    the packages in the local sstate cache populated by the first run.
 
 ## Boot-time issues
