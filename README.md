@@ -54,15 +54,21 @@ second BAR is added for all boards, and the AXI IIC is added only on `pl_i2c` bo
 
 ### Software (PetaLinux)
 
-* **Accelerator meta-layers** are added under `project-spec/` (rather than
-  `project-spec/meta-user/`):
-  * Hailo — [meta-hailo](https://github.com/hailo-ai/meta-hailo), branch `hailo8-scarthgap`
-  * Axelera — [meta-axelera](https://github.com/axelera-ai-hub/meta-axelera), branch `yocto/scarthgap`
-  * DeepX M1 — [meta-deepx-m1](https://github.com/DEEPX-AI/meta-deepx-m1), branch `scarthgap`
-  * MemryX MX3 — [AlbertaBeef/memx-yocto](https://github.com/AlbertaBeef/memx-yocto), branch
-    `mb-edgeai-amd-petalinux-2025-2` (a fork that adds the scarthgap support the upstream layer lacks)
-* **Device tree / FSBL** changes to expose the second BAR as non-prefetchable memory and to
-  de-assert `PERST#` at boot.
+The accelerator support is added as git submodules under `submodules/`. At build time each
+is copied into the PetaLinux project's `project-spec/` (not `project-spec/meta-user/`) and
+registered as a bitbake layer via `CONFIG_USER_LAYER_*` in `project-spec/configs/config`:
+
+| Meta-layer | Accelerator | Repository | Branch |
+|------------|-------------|------------|--------|
+| `meta-hailo` | Hailo-8 | [hailo-ai/meta-hailo](https://github.com/hailo-ai/meta-hailo) | `hailo8-scarthgap` |
+| `meta-axelera` | Axelera Metis | [axelera-ai-hub/meta-axelera](https://github.com/axelera-ai-hub/meta-axelera) | `yocto/scarthgap` |
+| `meta-deepx-m1` | DeepX M1 | [DEEPX-AI/meta-deepx-m1](https://github.com/DEEPX-AI/meta-deepx-m1) | `scarthgap` |
+| `memx-yocto` | MemryX MX3 | [AlbertaBeef/memx-yocto](https://github.com/AlbertaBeef/memx-yocto) | `mb-edgeai-amd-petalinux-2025-2` |
+
+The `memx-yocto` layer is a fork that adds the scarthgap support the upstream MemryX layer lacks.
+
+**Device tree / FSBL** changes expose the second BAR as non-prefetchable memory and de-assert
+`PERST#` at boot.
 
 ### Supported boards
 

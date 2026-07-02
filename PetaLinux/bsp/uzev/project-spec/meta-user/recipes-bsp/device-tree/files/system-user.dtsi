@@ -643,3 +643,43 @@
       stdout-path = "serial0:115200n8";
    };
 };
+
+/* PCIe BAR fix */
+
+// pci_bus 0000:00: root bus resource [mem 0xb0000000-0xb7ffffff pref]   <- should NOT say "pref"
+// pci_bus 0000:00: root bus resource [mem 0x540000000-0x54fffffff pref]
+&{/pl-bus/axi-pcie@b0000000} {
+    ranges = <0x02000000 0x00 0xb0000000 0x00 0xb0000000 0x00 0x08000000   /* NON-pref 32-bit, 128 MB */
+              0x43000000 0x05 0x40000000 0x05 0x40000000 0x00 0x10000000>; /* pref 64-bit, 256 MB  existing */
+};
+// pci_bus 0001:00: root bus resource [mem 0xb8000000-0xbfffffff pref]   <- should NOT say "pref"
+// pci_bus 0001:00: root bus resource [mem 0x550000000-0x55fffffff pref]
+&{/pl-bus/axi-pcie@b8000000} {
+    ranges = <0x02000000 0x00 0xb8000000 0x00 0xb8000000 0x00 0x08000000   /* NON-pref 32-bit, 128 MB */
+              0x43000000 0x05 0x50000000 0x05 0x50000000 0x00 0x10000000>; /* pref 64-bit, 256 MB existing */
+};
+
+/* AXI IIC driving FMC SCL/SDA (HD_SE_22_N/P) */
+
+&fmc_iic {
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    m2_perst: gpio@41 {
+        compatible = "ti,tca9536";
+        reg = <0x41>;
+        gpio-controller;
+        #gpio-cells = <2>;
+
+        /* P0 = PERST_A#, P1 = PERST_B#  -> drive HIGH = module operational
+         *                                  (LOW = hold module in reset)
+         * P2 = PRSNT_M2C_L (input)      -> stacked-FMC present-detect, active low
+         * Per OP073 truth table: PERST = 1 (HIGH) operational, 0 (LOW) in reset. */
+        m2-perst-hog {
+            gpio-hog;
+            gpios = <0 GPIO_ACTIVE_HIGH>, <1 GPIO_ACTIVE_HIGH>;
+            output-high;          /* both slots released from reset = operational */
+            line-name = "m2-perst";
+        };
+    };
+};

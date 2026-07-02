@@ -5,3 +5,15 @@
 	path = submodules/meta-hailo
 	url = https://github.com/hailo-ai/meta-hailo
 	branch = hailo8-scarthgap
+[submodule "submodules/meta-axelera"]
+	path = submodules/meta-axelera
+	url = https://github.com/axelera-ai-hub/meta-axelera
+	branch = yocto/scarthgap
+[submodule "submodules/meta-deepx-m1"]
+	path = submodules/meta-deepx-m1
+	url = https://github.com/DEEPX-AI/meta-deepx-m1
+	branch = scarthgap
+[submodule "submodules/memx-yocto"]
+	path = submodules/memx-yocto
+	url = https://github.com/AlbertaBeef/memx-yocto
+	branch = mb-edgeai-amd-petalinux-2025-2
