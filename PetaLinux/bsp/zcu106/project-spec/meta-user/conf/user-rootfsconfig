@@ -46,3 +46,20 @@ CONFIG_libgsthailo
 CONFIG_libgsthailotools
 CONFIG_hailo-post-processes
 
+
+# Axelera
+
+CONFIG_axelera-driver
+CONFIG_axelera-udev-rules
+
+# DeepX
+
+CONFIG_dx-driver
+CONFIG_dx-rt
+CONFIG_dx-stream
+CONFIG_dx-stream-sample
+
+# MemryX
+
+CONFIG_memx-cascade-plus-pcie
+CONFIG_memx-runtime

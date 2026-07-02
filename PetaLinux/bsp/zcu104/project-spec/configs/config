@@ -320,9 +320,14 @@ CONFIG_YOCTO_NETWORK_SSTATE_FEEDS_URL="https://petalinux.xilinx.com/sswreleases/
 #
 # User Layers
 #
-CONFIG_USER_LAYER_0="${PROOT}/project-spec/meta-user/meta-hailo/meta-hailo-libhailort"
-CONFIG_USER_LAYER_1="${PROOT}/project-spec/meta-user/meta-hailo/meta-hailo-accelerator"
-CONFIG_USER_LAYER_2="${PROOT}/project-spec/meta-user/meta-hailo/meta-hailo-tappas"
+CONFIG_USER_LAYER_0="${PROOT}/project-spec/meta-hailo/meta-hailo-accelerator"
+CONFIG_USER_LAYER_1="${PROOT}/project-spec/meta-hailo/meta-hailo-libhailort"
+CONFIG_USER_LAYER_2="${PROOT}/project-spec/meta-hailo/meta-hailo-tappas"
+CONFIG_USER_LAYER_3="${PROOT}/project-spec/meta-axelera"
+CONFIG_USER_LAYER_4="${PROOT}/project-spec/meta-deepx-m1"
+CONFIG_USER_LAYER_5="${PROOT}/project-spec/memx-yocto/meta-mx3-driver"
+CONFIG_USER_LAYER_6="${PROOT}/project-spec/memx-yocto/meta-memx-runtime"
+CONFIG_USER_LAYER_7=""
 CONFIG_SUBSYSTEM_BOOTARGS_GENERATED="earlycon console=ttyPS0,115200 root=/dev/ram0 rw init_fatal_sh=1 cma=1000M"
 CONFIG_TMP_DIR_LOCATION="${PROOT}/build/tmp"
 # RPi Camera FMC customizations

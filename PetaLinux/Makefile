@@ -55,7 +55,12 @@ PETL_LOCK = $(PETL_ROOT)/.$(TARGET).lock
 
 # Hailo recipes
 SUBMOD_PATH = $(PETL_ROOT)/../submodules
-HAILO_RECIPES = $(SUBMOD_PATH)/meta-hailo
+# Accelerator meta-layer submodules. Copied into <target>/project-spec/ and
+# registered as bitbake layers via CONFIG_USER_LAYER_* in project-spec/configs/config.
+ACCEL_RECIPES = $(SUBMOD_PATH)/meta-hailo \
+                $(SUBMOD_PATH)/meta-axelera \
+                $(SUBMOD_PATH)/meta-deepx-m1 \
+                $(SUBMOD_PATH)/memx-yocto
 
 # These macros return values from the valid target lists defined above
 define get_template_name
@@ -171,7 +176,7 @@ $(PETL_BUILD_DEPS): $(PETL_CFG_DONE)
 $(PETL_CFG_DONE): | $(PETL_COMP_DIR)
 	cp -R ./bsp/$(TARGET_BOARD)/project-spec ./$(TARGET)/.
 	-cp -R ./bsp/$(TARGET)/project-spec ./$(TARGET)/.
-	-cp -R $(HAILO_RECIPES) ./$(TARGET)/project-spec/meta-user/.
+	-cp -R $(ACCEL_RECIPES) ./$(TARGET)/project-spec/.
 	# Upstream meta-hailo-tappas/conf/layer.conf uses LICENSE_PATH = (hard
 	# assignment), wiping out additions from prior layers (meta-qt5,
 	# meta-openembedded). qtbase then fails do_create_spdx with
@@ -179,7 +184,7 @@ $(PETL_CFG_DONE): | $(PETL_COMP_DIR)
 	# Convert to += in the project-local copy. The submodule itself is
 	# left untouched so `git submodule update` doesn't undo this.
 	-sed -i 's|^LICENSE_PATH = |LICENSE_PATH += |' \
-	    ./$(TARGET)/project-spec/meta-user/meta-hailo/meta-hailo-tappas/conf/layer.conf
+	    ./$(TARGET)/project-spec/meta-hailo/meta-hailo-tappas/conf/layer.conf
 	@if [ ! -z "$(SSTATE_PATH)" ]; then \
 		echo '$(MIRROR_URL)' >> ./$(TARGET)/project-spec/configs/config; \
 		echo '$(SSTATE_FEEDS)' >> ./$(TARGET)/project-spec/configs/config; \
