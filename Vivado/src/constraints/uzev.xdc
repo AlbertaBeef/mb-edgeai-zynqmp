@@ -141,6 +141,13 @@ set_property DIFF_TERM_ADV TERM_100 [get_ports mipi_phy_if_3_data_n[*]]
 # These constraints apply to the UltraZed-EV Carrier with M2 M-key Stack FMC using 2x M.2 slots
 # ---------------------------------------------------------------------------------------------
 
+# I2C signals for M.2 Stack FMC I2C expander
+set_property PACKAGE_PIN J12 [get_ports fmc_iic_scl_io]; # FMC_SCL - HD_SE_22_N
+set_property PACKAGE_PIN K13 [get_ports fmc_iic_sda_io]; # FMC_SDA - HD_SE_22_P
+set_property IOSTANDARD LVCMOS12 [get_ports fmc_iic_*]
+set_property SLEW SLOW [get_ports fmc_iic_*]
+set_property DRIVE 4 [get_ports fmc_iic_*]
+
 # PCI Express reference clock 100MHz
 # IOSTANDARD for GT reference clock does not need to be specified
 # M2 slot 1 ref clock connects to MGT bank 225, CLK0 input

@@ -1,4 +1,11 @@
-# Multi-camera YOLOv5 on the Zynq UltraScale+ and Hailo-8 AI accelerator
+# Multi-M.2-accelerator Edge AI on the Zynq UltraScale+
+
+> This project is derived from Opsero's
+> [zynqmp-hailo-ai](https://github.com/fpgadeveloper/zynqmp-hailo-ai) reference design and
+> extends it to support a range of **M.2 AI accelerators** — Hailo-8, Axelera Metis, DeepX M1
+> and MemryX MX3 — following the integration described in
+> [Edge AI on AMD PetaLinux 2025.2](https://mariobergeron.com/posts/edge-ai-yocto-p01-amd-petalinux-2025-2/).
+> See [Modifications from the original design](#modifications-from-the-original-design) for what changed.
 
 ## Description
 
@@ -20,6 +27,49 @@ Important links:
 * Datasheet of the [M.2 M-key Stack FMC]
 * To [report an issue](https://github.com/fpgadeveloper/zynqmp-hailo-ai/issues)
 * For technical support: [Contact Opsero](https://opsero.com/contact-us)
+
+## Modifications from the original design
+
+This repository is derived from Opsero's
+[zynqmp-hailo-ai](https://github.com/fpgadeveloper/zynqmp-hailo-ai) reference design, which
+targets the Hailo-8 only. The changes below extend it to support several M.2 AI accelerators
+(Hailo-8, Axelera Metis, DeepX M1, MemryX MX3), based on the integration work described in
+[this blog post](https://mariobergeron.com/posts/edge-ai-yocto-p01-amd-petalinux-2025-2/).
+The camera capture pipelines, DisplayPort output and VCU of the original design are unchanged.
+
+### Hardware (Vivado)
+
+* **Second PCIe BAR per root port** — each XDMA (PCIe root port) now exposes a second BAR: a
+  128 MB non-prefetchable 32-bit window. Across the two root ports these fill
+  `0xB000_0000`–`0xBFFF_FFFF`. The original design's single prefetchable 64-bit BAR is not
+  sufficient for the multi-BAR accelerators (Axelera, DeepX, MemryX), which need this extra
+  32-bit window to enumerate.
+* **M.2 `PERST#` control** — the [M.2 M-key Stack FMC] drives `PERST_A#`/`PERST_B#` of its two
+  M.2 slots through a TCA9536 I2C I/O expander. Depending on where each board routes the FMC
+  I2C bus, this is driven either by an AXI IIC added in the PL (`pl_i2c`) or by the PS I2C1
+  (`ps_i2c`) — see [M.2 Stack FMC PERST# control](#m2-stack-fmc-perst-control).
+
+Both changes are implemented in the block-design generator `Vivado/src/bd/bd_zynqmp.tcl`: the
+second BAR is added for all boards, and the AXI IIC is added only on `pl_i2c` boards.
+
+### Software (PetaLinux)
+
+* **Accelerator meta-layers** are added under `project-spec/` (rather than
+  `project-spec/meta-user/`):
+  * Hailo — [meta-hailo](https://github.com/hailo-ai/meta-hailo), branch `hailo8-scarthgap`
+  * Axelera — [meta-axelera](https://github.com/axelera-ai-hub/meta-axelera), branch `yocto/scarthgap`
+  * DeepX M1 — [meta-deepx-m1](https://github.com/DEEPX-AI/meta-deepx-m1), branch `scarthgap`
+  * MemryX MX3 — [AlbertaBeef/memx-yocto](https://github.com/AlbertaBeef/memx-yocto), branch
+    `mb-edgeai-amd-petalinux-2025-2` (a fork that adds the scarthgap support the upstream layer lacks)
+* **Device tree / FSBL** changes to expose the second BAR as non-prefetchable memory and to
+  de-assert `PERST#` at boot.
+
+### Supported boards
+
+* PYNQ-ZU support has been dropped. Supported targets: `zcu104`, `zcu106`, `zcu106_hpc0`, `uzev`.
+
+> **Status:** this is a work in progress. The Vivado hardware changes above are in place; the
+> accelerator meta-layers, device tree and FSBL integration are still being folded in.
 
 ## Requirements
 
@@ -97,6 +147,23 @@ All target designs except `zcu106` require the [M.2 M-key Stack FMC] as the M.2 
 |--------------|------------------|
 | Requires [M.2 M-key Stack FMC] and uses only one FMC slot | Requires [FPGA Drive FMC Gen4] and uses two FMC slots |
 | ![ZCU104 with camera and Hailo stack](docs/source/images/m2-mkey-stack-on-zcu104.jpg) | ![ZCU106 non-stack setup](https://www.fpgadeveloper.com/multi-camera-yolov5-on-zynq-ultrascale-with-hailo-8-ai-acceleration/images/zynqmp-hailo-ai-7.jpg) |
+
+### M.2 Stack FMC PERST# control
+
+On the [M.2 M-key Stack FMC], the PCIe reset (`PERST#`) of the two M.2 slots is driven
+by a TCA9536 I2C I/O expander — output `[0]` is `PERST_A#` (M.2 slot A) and output `[1]`
+is `PERST_B#` (M.2 slot B). The I2C bus that reaches this expander is routed to different
+I/O on each carrier, so the mechanism used to drive `PERST#` is board-specific:
+
+| Target design | FMC I2C routing | PERST# mechanism   |
+|---------------|-----------------|--------------------|
+| `uzev`        | PL I/O          | `pl_i2c` (AXI IIC) |
+| `zcu104`      | PS I/O          | `ps_i2c` (PS I2C1) |
+| `zcu106_hpc0` | PS I/O          | `ps_i2c` (PS I2C1) |
+
+On the `ps_i2c` boards the expander is reached through the on-board TCA9548 I2C switch on
+`PS I2C1`, so the correct downstream mux channel must be selected before accessing the
+TCA9536.
 
 ## Build instructions
 

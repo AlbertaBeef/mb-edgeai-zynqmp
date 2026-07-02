@@ -94,6 +94,17 @@ if {$board_name == "zcu104"} {
   set pcie_blk_locn_1 "X0Y0"
 }
 
+# M.2 Stack FMC PERST# I2C controller mechanism (see README "M.2 Stack FMC PERST# control")
+# The Stack FMC drives PERST_A#/PERST_B# of its two M.2 slots via a TCA9536 I2C
+# I/O expander. The I2C bus reaching that expander lands on different I/O per board:
+#   pl_i2c - FMC I2C on PL I/O  -> add an AXI IIC in the PL (this script)
+#   ps_i2c - FMC I2C on PS MIO  -> use PS I2C1 (no PL IP added here; handled in DT/FSBL)
+if {$board_name == "ultrazed_7ev_cc"} {
+  set perst_i2c "pl_i2c"
+} else {
+  set perst_i2c "ps_i2c"
+}
+
 dict set dp_dict zcu104 dpaux "MIO 27 .. 30"
 dict set dp_dict zcu104 lane_sel "Dual Lower"
 dict set dp_dict zcu104 ref_clk_freq "27"
@@ -675,8 +686,9 @@ CONFIG.plltype {QPLL1} \
 CONFIG.ins_loss_profile {Chip-to-Chip} \
 CONFIG.type1_membase_memlimit_enable {Enabled} \
 CONFIG.type1_prefetchable_membase_memlimit {64bit_Enabled} \
-CONFIG.axibar_num {1} \
+CONFIG.axibar_num {2} \
 CONFIG.axibar2pciebar_0 {0x0000000540000000} \
+CONFIG.axibar2pciebar_1 {0xB0000000} \
 CONFIG.BASEADDR {0x00000000} \
 CONFIG.HIGHADDR {0x001FFFFF} \
 CONFIG.pf0_bar0_enabled {false} \
@@ -743,8 +755,9 @@ if {$dual_pcie} {
   CONFIG.ins_loss_profile {Chip-to-Chip} \
   CONFIG.type1_membase_memlimit_enable {Enabled} \
   CONFIG.type1_prefetchable_membase_memlimit {64bit_Enabled} \
-  CONFIG.axibar_num {1} \
+  CONFIG.axibar_num {2} \
   CONFIG.axibar2pciebar_0 {0x0000000550000000} \
+  CONFIG.axibar2pciebar_1 {0xB8000000} \
   CONFIG.BASEADDR {0x00000000} \
   CONFIG.HIGHADDR {0x001FFFFF} \
   CONFIG.pf0_bar0_enabled {false} \
@@ -811,6 +824,14 @@ set_property range 256M [get_bd_addr_segs {zynq_ultra_ps_e_0/Data/SEG_xdma_0_BAR
 if {$dual_pcie} {
   set_property offset 0x0550000000 [get_bd_addr_segs {zynq_ultra_ps_e_0/Data/SEG_xdma_1_BAR0}]
   set_property range 256M [get_bd_addr_segs {zynq_ultra_ps_e_0/Data/SEG_xdma_1_BAR0}]
+}
+
+# Place the second BAR (BAR1) of each root port: a 128MB non-prefetchable 32-bit
+# window, used by the multi-BAR M.2 accelerators (Axelera / DeepX / MemryX).
+# Together the two windows fill 0xB0000000-0xBFFFFFFF.
+assign_bd_address -offset 0xB0000000 -range 0x08000000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs xdma_0/S_AXI_B/BAR1] -force
+if {$dual_pcie} {
+  assign_bd_address -offset 0xB8000000 -range 0x08000000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs xdma_1/S_AXI_B/BAR1] -force
 }
 
 # Add MGT external port for PCIe (SSD1)
@@ -1299,6 +1320,20 @@ connect_bd_intf_net -boundary_type upper [get_bd_intf_pins display_pipeline/M00_
 lappend hpm0_lpd_ports [list "display_pipeline/s_axi_ctrl_clk_wiz" "clk_wiz_0/clk_100M" "rst_ps_axi_100M/peripheral_aresetn"]
 lappend hpm0_lpd_ports [list "display_pipeline/s_axi_ctrl_v_tc" "clk_wiz_0/clk_100M" "rst_ps_axi_100M/peripheral_aresetn"]
 lappend hpm0_fpd_ports [list "display_pipeline/s_axi_ctrl_vmix" $display_clk $display_rst/peripheral_aresetn]
+
+# M.2 Stack FMC PERST# controller (pl_i2c boards only)
+# Add an AXI IIC in the PL to drive the Stack FMC's TCA9536 I2C I/O expander,
+# which controls PERST_A#/PERST_B# of the two M.2 slots. On ps_i2c boards the
+# PS I2C1 is used instead, so no PL IP is added here.
+if {$perst_i2c == "pl_i2c"} {
+  set fmc_iic [create_bd_cell -type ip -vlnv xilinx.com:ip:axi_iic fmc_iic]
+  connect_bd_net [get_bd_pins clk_wiz_0/clk_100M] [get_bd_pins fmc_iic/s_axi_aclk]
+  connect_bd_net [get_bd_pins rst_ps_axi_100M/peripheral_aresetn] [get_bd_pins fmc_iic/s_axi_aresetn]
+  lappend hpm0_lpd_ports [list "fmc_iic/S_AXI" "clk_wiz_0/clk_100M" "rst_ps_axi_100M/peripheral_aresetn"]
+  create_bd_intf_port -mode Master -vlnv xilinx.com:interface:iic_rtl:1.0 fmc_iic
+  connect_bd_intf_net [get_bd_intf_pins fmc_iic/IIC] [get_bd_intf_ports fmc_iic]
+  lappend intr_list "fmc_iic/iic2intc_irpt"
+}
 
 # Connect EMIO GPIO
 connect_bd_net [get_bd_pins zynq_ultra_ps_e_0/emio_gpio_o] [get_bd_pins display_pipeline/emio_gpio]
