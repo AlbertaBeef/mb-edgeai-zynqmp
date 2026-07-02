@@ -1,15 +1,24 @@
-# ZCU104 FSBL VADJ patch.
+# ZCU104 FSBL VADJ fix.
 #
-# NOTE: 2025.2's xlnx-embeddedsw.bbclass schedules do_copy_shared_src AFTER
-# do_patch (do_patch runs on an empty workdir). That means SRC_URI-attached
-# .patch files can't be applied the normal way. We stage the patch with
-# apply=no and run it manually in a new shell task inserted between
-# do_copy_shared_src and do_configure.
+# The stock 2025.2 FSBL does not enable VADJ correctly on the ZCU104: it reads
+# the VADJ record from the board EEPROM (0x54) instead of the FMC EEPROM (0x50),
+# selects the wrong I2C-MUX channel, and reads only 32 bytes (too few to reach
+# the VADJ record). These pre-patched xfsbl_board.c / xfsbl_board.h fix all three.
+#
+# NOTE: 2025.2's xlnx-embeddedsw.bbclass hardlink-copies the fsbl-firmware
+# sources from the shared embeddedsw tree into ${S} by do_copy_shared_src (which
+# runs AFTER do_patch, on an otherwise-empty workdir). So we install our
+# replacements in do_configure:prepend, AFTER that copy. Must be `install`, NOT
+# `cp -f`: the ${S} files are hardlinks to work-shared/embeddedsw-*/git, and an
+# in-place overwrite would corrupt the source shared by every esw recipe.
+# install removes-then-creates, which breaks the hardlink safely.
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-SRC_URI:append = " file://zcu104_vadj_fsbl.patch;apply=no"
+SRC_URI += "file://xfsbl_board.c file://xfsbl_board.h"
 
-do_apply_vadj_patch() {
-    cd ${S} && patch -p1 < ${WORKDIR}/zcu104_vadj_fsbl.patch
+do_configure:prepend() {
+    install -m 0644 ${WORKDIR}/xfsbl_board.c \
+        ${S}/lib/sw_apps/zynqmp_fsbl/src/xfsbl_board.c
+    install -m 0644 ${WORKDIR}/xfsbl_board.h \
+        ${S}/lib/sw_apps/zynqmp_fsbl/src/xfsbl_board.h
 }
-addtask apply_vadj_patch after do_copy_shared_src before do_configure
