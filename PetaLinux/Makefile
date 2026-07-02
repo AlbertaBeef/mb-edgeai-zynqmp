@@ -16,7 +16,6 @@ JOBS ?= 8
 zcu104_target := zynqMP 0 0 no_accel
 zcu106_target := zynqMP 0 0 no_accel
 zcu106_hpc0_target := zynqMP 0 0 no_accel
-pynqzu_target := zynqMP 0 0 no_accel
 uzev_target := zynqMP 0 0 no_accel
 # UPDATER END
 

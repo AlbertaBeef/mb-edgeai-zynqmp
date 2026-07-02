@@ -38,7 +38,6 @@ set_param board.repoPaths [get_property LOCAL_ROOT_DIR [xhub::get_xstores xilinx
 dict set target_dict zcu104 { xilinx.com zcu104 { 0 1 2 3 } zynqmp 1 { X1 } }
 dict set target_dict zcu106 { xilinx.com zcu106 { 0 1 2 3 } zynqmp 1 { X1 } }
 dict set target_dict zcu106_hpc0 { xilinx.com zcu106 { 0 1 2 3 } zynqmp 1 { X4 X4 } }
-dict set target_dict pynqzu { tul.com.tw pynqzu { 1 2 } zynqmp 0 { X1 } }
 dict set target_dict genesyszu { digilentinc.com gzu_5ev { 1 2 } zynqmp 1 { X1 } }
 dict set target_dict uzev { avnet.com ultrazed_7ev_cc { 0 1 2 3 } zynqmp 1 { X4 X4 } }
 # UPDATER END

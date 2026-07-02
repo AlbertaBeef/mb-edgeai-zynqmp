@@ -1,6 +1,6 @@
 {
   "bd_name": "rpi",
-  "prj_name": "zynqmp-hailo-ai",
+  "prj_name": "mb-edgeai-zynqmp",
   "groups": [
     {
       "label": "fpga",
@@ -95,31 +95,6 @@
       "stack": true,
       "accel": false,
       "connector": "HPC0",
-      "group": "zu",
-      "petalinux": true,
-      "baremetal": false,
-      "license": false,
-      "flashsize": "0",
-      "flashintf": "0"
-    },
-    {
-      "publish": true,
-      "label": "pynqzu",
-      "board": "PYNQ-ZU",
-      "link": "https://www.tulembedded.com/FPGA/ProductsPYNQ-ZU.html",
-      "url": "tul.com.tw",
-      "boardname": "pynqzu",
-      "cams": [
-        1,
-        2
-      ],
-      "lanes": [
-        1
-      ],
-      "vcu": false,
-      "stack": true,
-      "accel": false,
-      "connector": "LPC",
       "group": "zu",
       "petalinux": true,
       "baremetal": false,

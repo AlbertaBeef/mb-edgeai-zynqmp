@@ -122,12 +122,10 @@ All target designs except `zcu106` require the [M.2 M-key Stack FMC] as the M.2 
 | [ZCU104]              | `zcu104`        | LPC         | 4     | 1     | :white_check_mark: | :white_check_mark: | Standard :free: | -     |
 | [ZCU106]              | `zcu106`        | HPC0+HPC1   | 4     | 1     | :white_check_mark: | :x:                | Standard :free: | -     |
 | [ZCU106]              | `zcu106_hpc0`   | HPC0        | 4     | 2     | :white_check_mark: | :white_check_mark: | Standard :free: | -     |
-| [PYNQ-ZU]             | `pynqzu`        | LPC         | 2     | 1     | :x:                | :white_check_mark: | Standard :free: | -     |
 | [UltraZed-EV Carrier] | `uzev`          | HPC         | 4     | 2     | :white_check_mark: | :white_check_mark: | Standard :free: | -     |
 
 [ZCU104]: https://www.xilinx.com/zcu104
 [ZCU106]: https://www.xilinx.com/zcu106
-[PYNQ-ZU]: https://www.tulembedded.com/FPGA/ProductsPYNQ-ZU.html
 [UltraZed-EV Carrier]: https://www.xilinx.com/products/boards-and-kits/1-1s78dxb.html
 <!-- updater end -->
 
@@ -141,9 +139,7 @@ All target designs except `zcu106` require the [M.2 M-key Stack FMC] as the M.2 
 3. The `zcu106` target design uses the [FPGA Drive FMC Gen4] as the M.2 adapter for the Hailo-8.
    In that design, the [FPGA Drive FMC Gen4] connects to HPC1 while the [RPi Camera FMC] connects
    to the HPC0 connector.
-4. The `pynqzu` target design has video pipelines for only 2 cameras (CAM1 and CAM2 as
-   labelled on the RPi Camera FMC). This is due to the resource limitations of the devices on these boards.
-5. The `zcu106_hpc0` and `uzev` target designs have support for 2x M.2 modules. To use the Hailo demo scripts,
+4. The `zcu106_hpc0` and `uzev` target designs have support for 2x M.2 modules. To use the Hailo demo scripts,
    at least one of these modules must be the [Hailo-8 M.2 AI Acceleration Module]. The second slot can be used
    for a second Hailo module, or an NVMe SSD for storage.
 
