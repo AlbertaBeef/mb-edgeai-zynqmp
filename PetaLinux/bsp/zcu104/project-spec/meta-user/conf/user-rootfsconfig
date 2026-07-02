@@ -48,7 +48,6 @@ CONFIG_hailo-post-processes
 # Axelera
 
 CONFIG_axelera-driver
-CONFIG_axelera-udev-rules
 
 # DeepX
 

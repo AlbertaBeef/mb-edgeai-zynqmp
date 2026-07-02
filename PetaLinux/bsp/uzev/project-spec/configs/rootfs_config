@@ -4065,7 +4065,6 @@ CONFIG_simd=y
 
 # Accelerators (Axelera / DeepX / MemryX)
 CONFIG_axelera-driver=y
-CONFIG_axelera-udev-rules=y
 CONFIG_dx-driver=y
 CONFIG_dx-rt=y
 CONFIG_dx-stream=y
