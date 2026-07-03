@@ -421,17 +421,22 @@
    };
 };
 
-/* PCIe BAR fix: declare the second XDMA BAR (0xb0000000, 128 MB) as
- * NON-prefetchable 32-bit memory. The auto-generated DT marks it prefetchable,
- * which leaves the multi-BAR M.2 accelerators' non-prefetchable BARs (e.g. the
- * DeepX M1 BAR2/3/4/5) with nowhere to be assigned, so the endpoint driver's
- * BAR remap fails. The prefetchable 64-bit BAR0 (0x540000000, 256 MB) is kept.
+/* PCIe BAR fix (zcu106_hpc0, dual-PCIe): declare BOTH XDMA BARs (0xb0000000 and
+ * 0xb8000000, 128 MB each) as NON-prefetchable 32-bit memory. The auto-generated
+ * DT marks them prefetchable, which leaves the multi-BAR M.2 accelerators'
+ * non-prefetchable BARs (e.g. DeepX M1 / MemryX BAR2/3/4/5) with nowhere to be
+ * assigned, so the endpoint driver's BAR remap fails. The prefetchable 64-bit
+ * BAR0s (0x540000000 and 0x550000000, 256 MB) are kept.
  *
- * This base ZCU106 target is single-PCIe (only xdma_0 / axi-pcie@b0000000), so
- * only that root port is overridden. The dual-PCIe zcu106_hpc0 target ships its
- * own full copy of this system-user.dtsi (via its target overlay) that also
- * overrides the second root port, axi-pcie@b8000000 -- keep the two in sync. */
+ * NOTE: this file is a full copy of bsp/zcu106/.../system-user.dtsi plus the
+ * axi-pcie@b8000000 override below (base single-PCIe zcu106 has no second root
+ * port). Keep the shared portion in sync with the base zcu106 DT. */
 &{/pl-bus/axi-pcie@b0000000} {
     ranges = <0x02000000 0x00 0xb0000000 0x00 0xb0000000 0x00 0x08000000   /* NON-pref 32-bit, 128 MB */
               0x43000000 0x05 0x40000000 0x05 0x40000000 0x00 0x10000000>; /* pref 64-bit, 256 MB  existing */
+};
+
+&{/pl-bus/axi-pcie@b8000000} {
+    ranges = <0x02000000 0x00 0xb8000000 0x00 0xb8000000 0x00 0x08000000   /* NON-pref 32-bit, 128 MB */
+              0x43000000 0x05 0x50000000 0x05 0x50000000 0x00 0x10000000>; /* pref 64-bit, 256 MB  existing */
 };
