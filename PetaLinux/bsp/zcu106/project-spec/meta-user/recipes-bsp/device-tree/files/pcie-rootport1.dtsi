@@ -1,0 +1,11 @@
+/*
+ * Second PCIe root port (xdma_1, axi-pcie@b8000000) BAR override.
+ *
+ * This is the base ZCU106 target, which is single-PCIe (only xdma_0 /
+ * axi-pcie@b0000000 exists), so there is no second root port to override --
+ * this stub is intentionally empty.
+ *
+ * The dual-PCIe `zcu106_hpc0` target ships a target overlay
+ * (PetaLinux/bsp/zcu106_hpc0/.../device-tree/files/pcie-rootport1.dtsi) that
+ * replaces this file with the real axi-pcie@b8000000 non-prefetchable BAR fix.
+ */

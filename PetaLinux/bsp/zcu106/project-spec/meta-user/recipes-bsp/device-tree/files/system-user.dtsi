@@ -420,3 +420,27 @@
       stdout-path = "serial0:115200n8";
    };
 };
+
+/* PCIe BAR fix: declare the second XDMA BAR (0xb0000000, 128 MB) as
+ * NON-prefetchable 32-bit memory. The auto-generated DT marks it prefetchable,
+ * which leaves the multi-BAR M.2 accelerators' non-prefetchable BARs (e.g. the
+ * DeepX M1 BAR2/3/4/5) with nowhere to be assigned, so the endpoint driver's
+ * BAR remap fails. The prefetchable 64-bit BAR0 (0x540000000, 256 MB) is kept.
+ *
+ * Only axi-pcie@b0000000 (xdma_0) is overridden here because this DT is shared
+ * by the single-PCIe `zcu106` target and the dual-PCIe `zcu106_hpc0` target,
+ * and referencing the second root port (axi-pcie@b8000000) directly would fail
+ * to compile on the single-PCIe target where that node does not exist. The
+ * second root port is overridden separately via the /include/-d
+ * pcie-rootport1.dtsi below: an empty stub for this base (single-PCIe) zcu106,
+ * which the zcu106_hpc0 target overlay replaces with the real axi-pcie@b8000000
+ * fix. */
+&{/pl-bus/axi-pcie@b0000000} {
+    ranges = <0x02000000 0x00 0xb0000000 0x00 0xb0000000 0x00 0x08000000   /* NON-pref 32-bit, 128 MB */
+              0x43000000 0x05 0x40000000 0x05 0x40000000 0x00 0x10000000>; /* pref 64-bit, 256 MB  existing */
+};
+
+/* Second PCIe root port (xdma_1 / axi-pcie@b8000000) BAR override. Per-target:
+ * empty here on single-PCIe zcu106; the real override on dual-PCIe zcu106_hpc0
+ * (supplied by its target overlay, which replaces this file). */
+/include/ "pcie-rootport1.dtsi"

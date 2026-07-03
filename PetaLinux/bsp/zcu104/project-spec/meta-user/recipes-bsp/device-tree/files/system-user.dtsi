@@ -442,3 +442,14 @@
    sdhci-caps-mask = <0 0x200000>;
    sdhci-caps = <0 0>;
 };
+
+/* PCIe BAR fix: declare the second XDMA BAR (0xb0000000, 128 MB) as
+ * NON-prefetchable 32-bit memory. The auto-generated DT marks it prefetchable,
+ * which leaves the multi-BAR M.2 accelerators' non-prefetchable BARs (e.g. the
+ * DeepX M1 BAR2/3/4/5) with nowhere to be assigned, so the endpoint driver's
+ * BAR remap fails. The prefetchable 64-bit BAR0 (0x540000000, 256 MB) is kept.
+ * ZCU104 is single-PCIe, so only axi-pcie@b0000000 (xdma_0) exists. */
+&{/pl-bus/axi-pcie@b0000000} {
+    ranges = <0x02000000 0x00 0xb0000000 0x00 0xb0000000 0x00 0x08000000   /* NON-pref 32-bit, 128 MB */
+              0x43000000 0x05 0x40000000 0x05 0x40000000 0x00 0x10000000>; /* pref 64-bit, 256 MB  existing */
+};
