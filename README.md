@@ -44,13 +44,22 @@ The camera capture pipelines, DisplayPort output and VCU of the original design 
   `0xB000_0000`–`0xBFFF_FFFF`. The original design's single prefetchable 64-bit BAR is not
   sufficient for the multi-BAR accelerators (Axelera, DeepX, MemryX), which need this extra
   32-bit window to enumerate.
-* **M.2 `PERST#` control** — the [M.2 M-key Stack FMC] drives `PERST_A#`/`PERST_B#` of its two
-  M.2 slots through a TCA9536 I2C I/O expander. Depending on where each board routes the FMC
-  I2C bus, this is driven either by an AXI IIC added in the PL (`pl_i2c`) or by the PS I2C1
-  (`ps_i2c`) — see [M.2 Stack FMC PERST# control](#m2-stack-fmc-perst-control).
+* **M.2 Stack FMC `PERST#` control** — the [M.2 M-key Stack FMC] drives `PERST_A#`/`PERST_B#`
+  of its two M.2 slots through a TCA9536 I2C I/O expander. Depending on where each board
+  routes the FMC I2C bus, this is driven either by an AXI IIC added in the PL (`pl_i2c`) or by
+  the PS I2C1 (`ps_i2c`) — see [M.2 Stack FMC PERST# control](#m2-stack-fmc-perst-control).
+* **FPGA Drive FMC `PERST#` control (`zcu106` only)** — on the base `zcu106` target the M.2
+  adapter is the [FPGA Drive FMC Gen4] on HPC1, whose reset/detect signals are wired to PL I/O
+  rather than an I2C expander. A dedicated dual-channel AXI GPIO drives them: channel 1 (outputs,
+  default `0b11`) holds `perst_a`/`perst_b` de-asserted at PL config plus a `disable_ssd2_pwr`
+  control; channel 2 (inputs) reads `pedet_a`/`pedet_b`. `PERST#` is already released when the
+  PL configures; the base `zcu106` FSBL additionally pulses it low→high after bitstream download
+  via this GPIO (see below), so slow-training endpoints re-train before Linux probes PCIe.
 
-Both changes are implemented in the block-design generator `Vivado/src/bd/bd_zynqmp.tcl`: the
-second BAR is added for all boards, and the AXI IIC is added only on `pl_i2c` boards.
+These changes are implemented in the block-design generator `Vivado/src/bd/bd_zynqmp.tcl`: the
+second BAR is added for all boards, the AXI IIC is added only on `pl_i2c` boards, and the FPGA
+Drive FMC AXI GPIO is gated to the `zcu106` target. The FPGA Drive FMC pin/IOSTANDARD
+constraints live in `Vivado/src/constraints/zcu106.xdc`.
 
 ### Software (PetaLinux)
 
@@ -67,15 +76,62 @@ registered as a bitbake layer via `CONFIG_USER_LAYER_*` in `project-spec/configs
 
 The `memx-yocto` layer is a fork that adds the scarthgap support the upstream MemryX layer lacks.
 
-**Device tree / FSBL** changes expose the second BAR as non-prefetchable memory and de-assert
-`PERST#` at boot.
+#### Device tree (`project-spec/meta-user/recipes-bsp/device-tree/files/system-user.dtsi`)
+
+* **Non-prefetchable BAR ranges** — the `axi-pcie@…` `ranges` are overridden so the second
+  32-bit BAR is exposed as non-prefetchable memory. Without this the multi-BAR accelerators
+  fail with *"eDMA BAR I/O remapping failed"* at probe.
+* **Ethernet PHY reset (`zcu104`, `zcu106`)** — the on-board DP83867 PHY on `gem3` needs an
+  explicit reset to come up reliably (otherwise it falls back to a random MAC / no link). The
+  device tree now adds a `phy-handle`/`phy-mode` on `gem3` and an `ethernet-phy` node whose
+  `reset-gpios` point at the board's TCA6416 I/O expander (`tca6416_u97`). On `zcu104` that
+  expander sits behind the PS-I2C TCA9548 switch; on `zcu106` it is directly on `i2c0`.
+* **M.2 Stack FMC TCA9536 (`zcu104`, `zcu106_hpc0`)** — the M.2 Stack FMC's TCA9536 expander is
+  now described, reached through the correct TCA9548 downstream channel (`zcu104`: channel 5;
+  `zcu106_hpc0`: HPC0 channel 0). A `gpio-hog` drives `PERST_A#`/`PERST_B#` high so the M.2
+  slots are out of reset before Linux probes PCIe.
+
+#### FSBL (`project-spec/meta-user/recipes-bsp/embeddedsw/`)
+
+* **Boot-time `PERST#`** — an `xfsbl_hooks.c` hook pulses `PERST_A#`/`PERST_B#` early in boot,
+  so slow-to-train endpoints are up before the PCIe root complex is probed. The mechanism is
+  target-specific:
+    * `uzev` — M.2 Stack FMC TCA9536 over the **PL AXI IIC** (`pl_i2c`).
+    * `zcu104`, `zcu106_hpc0` — M.2 Stack FMC TCA9536 reached by walking the **PS-I2C TCA9548**
+      switch (`ps_i2c`).
+    * `zcu106` (base) — the FPGA Drive FMC's `PERST#` is on PL I/O, so the hook drives the
+      **`fpga_drive_gpio` AXI GPIO** directly (memory-mapped, no I2C). This is a separate
+      `xfsbl_hooks.c` in `bsp/zcu106`; the `bsp/zcu106_hpc0` overlay swaps in the TCA9536 version
+      for that target.
+
+  The hook is installed via `do_configure:prepend` with `install` (not `cp`, which would corrupt
+  the hardlinked shared embeddedsw source tree).
+
+#### Login prompt / hostname
+
+* The Linux hostname and product string are set to `mb-edgeai-<board>-2025-2` (in
+  `project-spec/configs/config`), replacing the original `<board>-hailo-2025-2`.
 
 ### Supported boards
 
 * PYNQ-ZU support has been dropped. Supported targets: `zcu104`, `zcu106`, `zcu106_hpc0`, `uzev`.
 
-> **Status:** this is a work in progress. The Vivado hardware changes above are in place; the
-> accelerator meta-layers, device tree and FSBL integration are still being folded in.
+### Validation status
+
+The Vivado, meta-layer, device tree and FSBL changes above are all in place and build. Hardware
+validation so far:
+
+| Target | Build | Hardware validation |
+|--------|-------|---------------------|
+| `zcu104`      | :white_check_mark: | :white_check_mark: DeepX M1 **and** MemryX MX3 enumerate and run (ps_i2c `PERST#`, ethernet PHY reset confirmed) |
+| `uzev`        | :white_check_mark: | :hourglass: builds; `pl_i2c` `PERST#` path not yet confirmed on hardware |
+| `zcu106`      | :white_check_mark: | :grey_question: **untested — no board on hand.** FPGA Drive FMC AXI GPIO + `zcu106.xdc` constraints pass synthesis but the pin mapping and PCIe link are unverified |
+| `zcu106_hpc0` | :white_check_mark: | :grey_question: **untested — no board on hand.** PS-I2C mux path (I2C1 → PCA9548 `0x75` → ch0 → TCA9536) assumed from the stock DTS/schematic |
+
+The `zcu106`/`zcu106_hpc0` changes are deliberately **fail-safe**: a wrong I2C path just NACKs,
+and a wrong GPIO/PL pin only means `PERST#` isn't delivered — neither can damage hardware. They
+should be re-checked on the first available ZCU106 (watch the `[PERST]` FSBL prints, ethernet
+link, and PCIe enumeration).
 
 ## Requirements
 
@@ -157,22 +213,29 @@ by a TCA9536 I2C I/O expander — output `[0]` is `PERST_A#` (M.2 slot A) and ou
 is `PERST_B#` (M.2 slot B). The I2C bus that reaches this expander is routed to different
 I/O on each carrier, so the mechanism used to drive `PERST#` is board-specific:
 
-| Target design | FMC I2C routing | PERST# mechanism   |
-|---------------|-----------------|--------------------|
-| `uzev`        | PL I/O          | `pl_i2c` (AXI IIC) |
-| `zcu104`      | PS I/O          | `ps_i2c` (PS I2C1) |
-| `zcu106_hpc0` | PS I/O          | `ps_i2c` (PS I2C1) |
+| Target design | FMC I2C routing | PERST# mechanism   | TCA9548 channel to TCA9536 |
+|---------------|-----------------|--------------------|----------------------------|
+| `uzev`        | PL I/O          | `pl_i2c` (AXI IIC) | n/a (direct AXI IIC)       |
+| `zcu104`      | PS I/O (I2C1)   | `ps_i2c` (PS I2C1) | PCA9548 `0x74` → channel 5 |
+| `zcu106_hpc0` | PS I/O (I2C1)   | `ps_i2c` (PS I2C1) | PCA9548 `0x75` → channel 0 (HPC0) |
 
-On the `ps_i2c` boards the expander is reached through the on-board TCA9548 I2C switch on
-`PS I2C1`, so the correct downstream mux channel must be selected before accessing the
-TCA9536.
+On the `ps_i2c` boards the expander is reached through an on-board TCA9548 I2C switch on
+`PS I2C1`, so the correct downstream mux channel (above) must be selected before accessing the
+TCA9536 at `0x41`. Both the FSBL hook (early boot) and the device-tree `gpio-hog` (Linux)
+select this path.
+
+The base **`zcu106`** target does not use the M.2 Stack FMC — its M.2 adapter is the
+[FPGA Drive FMC Gen4], whose `PERST#`/detect signals are on PL I/O and are handled by a
+dedicated AXI GPIO instead (see [Hardware (Vivado)](#hardware-vivado)); no I2C expander is
+involved.
 
 ## Build instructions
 
-Clone the repo and change into its directory:
+Clone the repo (with `--recursive` to pull the accelerator meta-layer submodules) and change
+into its directory:
 ```
-git clone --recursive https://github.com/fpgadeveloper/zynqmp-hailo-ai.git
-cd zynqmp-hailo-ai
+git clone --recursive https://github.com/AlbertaBeef/mb-edgeai-zynqmp.git
+cd mb-edgeai-zynqmp
 ```
 
 ### Cross-platform build runner
