@@ -453,3 +453,82 @@
     ranges = <0x02000000 0x00 0xb0000000 0x00 0xb0000000 0x00 0x08000000   /* NON-pref 32-bit, 128 MB */
               0x43000000 0x05 0x40000000 0x05 0x40000000 0x00 0x10000000>; /* pref 64-bit, 256 MB  existing */
 };
+
+/* Ethernet fix + M.2 Stack FMC I/O expander.
+ *
+ * The auto-generated DT does not wire up the ZCU104's GEM3 PHY (TI DP83867 at
+ * MDIO 0x0c) or its reset line -- so the interface comes up with a random MAC
+ * and no usable PHY. The PHY reset is driven by the on-board TCA6416 (U97),
+ * which sits behind the PS I2C1 -> TCA9548A(0x74) I2C switch on channel 4.
+ *
+ * Describe that mux here, and while we're at it add channel 5 (the FMC_LPC
+ * bus, TCA9548A select 0x20) with the M.2 M-key Stack FMC's TCA9536 I/O
+ * expander -- the same device the FSBL drives to release PERST# at boot
+ * (xfsbl_hooks.c: PS I2C1 -> TCA9548A ch5 -> TCA9536 @ 0x41). */
+&i2c1 {                              /* i2c@ff030000, status="okay" from the board preset */
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    i2c-mux@74 {
+        compatible = "nxp,pca9548";  /* TCA9548A U34 @ 0x74 on PS I2C1 */
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reg = <0x74>;
+
+        i2c@4 {                      /* channel 4 (select 0x10): on-board TCA6416 U97 */
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reg = <0x4>;
+
+            tca6416_u97: gpio@20 {
+                compatible = "ti,tca6416";
+                reg = <0x20>;
+                gpio-controller;
+                #gpio-cells = <2>;
+            };
+        };
+
+        i2c@5 {                      /* channel 5 (select 0x20): FMC_LPC bus */
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reg = <0x5>;
+
+            /* M.2 M-key Stack FMC (op073) I2C I/O expander. The FSBL already
+             * cycles and deasserts PERST# at boot; this node exposes it to
+             * Linux and holds PERST# deasserted. */
+            m2_perst: gpio@41 {
+                compatible = "ti,tca9536";
+                reg = <0x41>;
+                gpio-controller;
+                #gpio-cells = <2>;
+                /* P0 = PERST_A# (M.2 slot A), P1 = PERST_B# (M.2 slot B)
+                 *   -> HIGH = module operational, LOW = held in reset.
+                 * P2 = PRSNT_M2C_L (input, active low). Per OP073 truth table. */
+                m2-perst-hog {
+                    gpio-hog;
+                    gpios = <0 GPIO_ACTIVE_HIGH>, <1 GPIO_ACTIVE_HIGH>;
+                    output-high;      /* both slots released from reset */
+                    line-name = "m2-perst";
+                };
+            };
+        };
+    };
+};
+
+&gem3 {
+    phy-handle = <&phy0>;
+    phy-mode = "rgmii-id";
+    mdio {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        phy0: ethernet-phy@c {
+            compatible = "ethernet-phy-id2000.a231", "ti,dp83867";
+            reg = <0xc>;
+            ti,rx-internal-delay = <0x8>;
+            ti,tx-internal-delay = <0xa>;
+            ti,fifo-depth = <0x1>;
+            ti,dp83867-rxctrl-strap-quirk;
+            reset-gpios = <&tca6416_u97 6 GPIO_ACTIVE_LOW>;
+        };
+    };
+};
