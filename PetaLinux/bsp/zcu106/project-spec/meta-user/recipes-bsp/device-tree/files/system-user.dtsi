@@ -435,3 +435,41 @@
     ranges = <0x02000000 0x00 0xb0000000 0x00 0xb0000000 0x00 0x08000000   /* NON-pref 32-bit, 128 MB */
               0x43000000 0x05 0x40000000 0x05 0x40000000 0x00 0x10000000>; /* pref 64-bit, 256 MB  existing */
 };
+
+/* Ethernet fix. The auto-generated DT does not wire up the ZCU106's GEM3 PHY
+ * (TI DP83867 at MDIO 0x0c) or its reset line, so the interface comes up with a
+ * random MAC and no usable PHY. On the ZCU106 the PHY reset (GEM3_EXP_RESET_B)
+ * is line 6 of the on-board TCA6416 (U97), which sits DIRECTLY on PS I2C0 (no
+ * mux) -- unlike the ZCU104, where U97 is behind the I2C1 -> TCA9548A mux.
+ * Values mirror the stock zynqmp-zcu106-revA board DT.
+ * (NOTE: keep this block in sync with the zcu106_hpc0 copy of this file.) */
+&i2c0 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    tca6416_u97: gpio@20 {
+        compatible = "ti,tca6416";
+        reg = <0x20>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        /* line 6 = GEM3_EXP_RESET_B; lines 10/11 = FMC_HPC0/HPC1_PRSNT_M2C_B */
+    };
+};
+
+&gem3 {
+    phy-handle = <&phy0>;
+    phy-mode = "rgmii-id";
+    mdio {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        phy0: ethernet-phy@c {
+            compatible = "ethernet-phy-id2000.a231", "ti,dp83867";
+            reg = <0xc>;
+            ti,rx-internal-delay = <0x8>;
+            ti,tx-internal-delay = <0xa>;
+            ti,fifo-depth = <0x1>;
+            ti,dp83867-rxctrl-strap-quirk;
+            reset-gpios = <&tca6416_u97 6 GPIO_ACTIVE_LOW>;
+        };
+    };
+};
