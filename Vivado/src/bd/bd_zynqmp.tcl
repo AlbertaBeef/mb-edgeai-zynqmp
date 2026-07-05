@@ -531,6 +531,37 @@ lappend hpm0_lpd_ports [list "rsvd_gpio/S_AXI" "clk_wiz_0/clk_100M" "rst_ps_axi_
 create_bd_intf_port -mode Master -vlnv xilinx.com:interface:gpio_rtl:1.0 rsvd_gpio
 connect_bd_intf_net [get_bd_intf_pins rsvd_gpio/GPIO] [get_bd_intf_ports rsvd_gpio]
 
+# FPGA Drive FMC (op063) control GPIO -- base zcu106 target only.
+# The zcu106 target uses the FPGA Drive FMC (on HPC1) instead of the M.2 Stack
+# FMC, so the M.2 PERST# is on PL user I/O (not the TCA9536 I2C expander the
+# Stack FMC boards use). A dual-channel AXI GPIO:
+#   ch1 (outputs): [0]=perst_a  [1]=perst_b  [2]=disable_ssd2_pwr
+#   ch2 (inputs) : [0]=pedet_a  [1]=pedet_b
+# C_DOUT_DEFAULT 0x3 drives PERST_A#/PERST_B# HIGH (deasserted) straight from PL
+# configuration, so the endpoints are released from reset before Linux probes
+# the root complex -- no FSBL hook needed on this target. disable_ssd2_pwr
+# defaults low (SSD2 power enabled).
+if {$target == "zcu106"} {
+  set fpga_drive_gpio [create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio fpga_drive_gpio]
+  set_property -dict [list \
+    CONFIG.C_GPIO_WIDTH {3} \
+    CONFIG.C_ALL_OUTPUTS {1} \
+    CONFIG.C_DOUT_DEFAULT {0x00000003} \
+    CONFIG.C_IS_DUAL {1} \
+    CONFIG.C_GPIO2_WIDTH {2} \
+    CONFIG.C_ALL_INPUTS_2 {1} \
+  ] $fpga_drive_gpio
+  connect_bd_net [get_bd_pins clk_wiz_0/clk_100M] [get_bd_pins fpga_drive_gpio/s_axi_aclk]
+  connect_bd_net [get_bd_pins rst_ps_axi_100M/peripheral_aresetn] [get_bd_pins fpga_drive_gpio/s_axi_aresetn]
+  lappend hpm0_lpd_ports [list "fpga_drive_gpio/S_AXI" "clk_wiz_0/clk_100M" "rst_ps_axi_100M/peripheral_aresetn"]
+  # ch1 outputs: perst_a / perst_b / disable_ssd2_pwr
+  create_bd_intf_port -mode Master -vlnv xilinx.com:interface:gpio_rtl:1.0 fpga_drive_ctrl
+  connect_bd_intf_net [get_bd_intf_pins fpga_drive_gpio/GPIO] [get_bd_intf_ports fpga_drive_ctrl]
+  # ch2 inputs: pedet_a / pedet_b
+  create_bd_intf_port -mode Master -vlnv xilinx.com:interface:gpio_rtl:1.0 fpga_drive_prsnt
+  connect_bd_intf_net [get_bd_intf_pins fpga_drive_gpio/GPIO2] [get_bd_intf_ports fpga_drive_prsnt]
+}
+
 # Add the AXI SmartConnect for the Frame Buffer Writes A
 create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect smartconnect_cams
 connect_bd_net [get_bd_pins $cam_clk] [get_bd_pins smartconnect_cams/aclk]

@@ -71,6 +71,16 @@ set_property PACKAGE_PIN K10 [get_ports {rsvd_gpio_tri_o[8]}]; # LA29_P
 set_property PACKAGE_PIN J10 [get_ports {rsvd_gpio_tri_o[9]}]; # LA29_N
 set_property IOSTANDARD LVCMOS12 [get_ports {rsvd_gpio_tri_o[*]}]
 
+# FPGA Drive FMC (OP063) control signals on HPC1 (base zcu106 target)
+# ch1 outputs: perst_a / perst_b / disable_ssd2_pwr ; ch2 inputs: pedet_a / pedet_b
+set_property PACKAGE_PIN B18 [get_ports {fpga_drive_ctrl_tri_o[0]}];  # perst_a          - LA00_CC_P
+set_property PACKAGE_PIN J24 [get_ports {fpga_drive_ctrl_tri_o[1]}];  # perst_b          - LA04_P
+set_property PACKAGE_PIN D22 [get_ports {fpga_drive_ctrl_tri_o[2]}];  # disable_ssd2_pwr - LA07_P
+set_property PACKAGE_PIN B19 [get_ports {fpga_drive_prsnt_tri_i[0]}]; # pedet_a          - LA00_CC_N
+set_property PACKAGE_PIN H24 [get_ports {fpga_drive_prsnt_tri_i[1]}]; # pedet_b          - LA04_N
+set_property IOSTANDARD LVCMOS12 [get_ports {fpga_drive_ctrl_tri_o[*]}]
+set_property IOSTANDARD LVCMOS12 [get_ports {fpga_drive_prsnt_tri_i[*]}]
+
 # MIPI interface 0
 set_property PACKAGE_PIN F17 [get_ports {mipi_phy_if_0_clk_p}]; # LA00_CC_P
 set_property PACKAGE_PIN F16 [get_ports {mipi_phy_if_0_clk_n}]; # LA00_CC_N
