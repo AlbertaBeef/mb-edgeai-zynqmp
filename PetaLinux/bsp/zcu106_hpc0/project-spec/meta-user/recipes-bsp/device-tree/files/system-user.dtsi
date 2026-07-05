@@ -440,3 +440,86 @@
     ranges = <0x02000000 0x00 0xb8000000 0x00 0xb8000000 0x00 0x08000000   /* NON-pref 32-bit, 128 MB */
               0x43000000 0x05 0x50000000 0x05 0x50000000 0x00 0x10000000>; /* pref 64-bit, 256 MB  existing */
 };
+
+/* Ethernet fix. The auto-generated DT does not wire up the ZCU106's GEM3 PHY
+ * (TI DP83867 at MDIO 0x0c) or its reset line, so the interface comes up with a
+ * random MAC and no usable PHY. On the ZCU106 the PHY reset (GEM3_EXP_RESET_B)
+ * is line 6 of the on-board TCA6416 (U97), which sits DIRECTLY on PS I2C0 (no
+ * mux) -- unlike the ZCU104, where U97 is behind the I2C1 -> TCA9548A mux.
+ * Values mirror the stock zynqmp-zcu106-revA board DT.
+ * (NOTE: keep this block in sync with the base bsp/zcu106 copy of this file.) */
+&i2c0 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    tca6416_u97: gpio@20 {
+        compatible = "ti,tca6416";
+        reg = <0x20>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        /* line 6 = GEM3_EXP_RESET_B; lines 10/11 = FMC_HPC0/HPC1_PRSNT_M2C_B */
+    };
+};
+
+&gem3 {
+    phy-handle = <&phy0>;
+    phy-mode = "rgmii-id";
+    mdio {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        phy0: ethernet-phy@c {
+            compatible = "ethernet-phy-id2000.a231", "ti,dp83867";
+            reg = <0xc>;
+            ti,rx-internal-delay = <0x8>;
+            ti,tx-internal-delay = <0xa>;
+            ti,fifo-depth = <0x1>;
+            ti,dp83867-rxctrl-strap-quirk;
+            reset-gpios = <&tca6416_u97 6 GPIO_ACTIVE_LOW>;
+        };
+    };
+};
+
+/* M.2 Stack FMC I2C I/O expander (zcu106_hpc0, HPC0 slot).
+ * On the ZCU106 the FMC HPC0 I2C (HPC0_IIC) is behind PS I2C1 -> PCA9548 (U135)
+ * @ 0x75 -> channel 0 -- a different path than the ZCU104 (mux@74 ch4/select
+ * 0x20). Describe that mux path and hang the M.2 M-key Stack FMC's TCA9536
+ * (@ 0x41) off it, so Linux sees the expander and holds PERST# deasserted.
+ *
+ * NOTE: this DT node alone does NOT enable PCIe enumeration -- PERST# must be
+ * deasserted BEFORE Linux probes the root complex, i.e. in the FSBL. The ZCU106
+ * ps_i2c FSBL PERST# hook (I2C1 -> PCA9548 0x75 ch0 -> TCA9536 0x41) is still
+ * TODO; until it exists, the gpio-hog below only holds PERST# high once Linux +
+ * the i2c/tca9536 drivers are up (too late for enumeration). */
+&i2c1 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    i2c-mux@75 {
+        compatible = "nxp,pca9548";  /* U135 @ 0x75 on PS I2C1 (FMC/board mux) */
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reg = <0x75>;
+
+        i2c@0 {                      /* channel 0: HPC0_IIC (the M.2 Stack FMC bus) */
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reg = <0>;
+
+            m2_perst: gpio@41 {
+                compatible = "ti,tca9536";
+                reg = <0x41>;
+                gpio-controller;
+                #gpio-cells = <2>;
+                /* P0 = PERST_A# (M.2 slot A), P1 = PERST_B# (M.2 slot B)
+                 *   -> HIGH = module operational, LOW = held in reset.
+                 * P2 = PRSNT_M2C_L (input, active low). Per OP073 truth table. */
+                m2-perst-hog {
+                    gpio-hog;
+                    gpios = <0 GPIO_ACTIVE_HIGH>, <1 GPIO_ACTIVE_HIGH>;
+                    output-high;
+                    line-name = "m2-perst";
+                };
+            };
+        };
+    };
+};
